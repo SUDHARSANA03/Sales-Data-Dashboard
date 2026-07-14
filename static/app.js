@@ -8,7 +8,6 @@ let charts = {}; // holds Chart.js instances
 // Run on page load
 document.addEventListener("DOMContentLoaded", () => {
     initApp();
-    setupClock();
     setupEventHandlers();
 });
 
