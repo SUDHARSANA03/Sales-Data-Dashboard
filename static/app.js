@@ -294,16 +294,22 @@ async function fetchMobileSummary() {
             document.getElementById("phone-health-progress").style.stroke = color;
         }
         
-        // Fetch sales trend for mobile home chart
+        // Fetch sales trend for desktop home chart
         const salesRes = await fetch(`${API_BASE}/analytics/sales`, { headers: getHeaders() });
         if (salesRes.ok) {
             const salesData = await salesRes.json();
-            const recent = salesData.daily_sales.slice(-6);
-            const dates = recent.map(r => r.date.substring(5)); // MM-DD
+            const recent = salesData.daily_sales.slice(-7);
+            const dates = recent.map(r => r.date.substring(5));
             const sales = recent.map(r => r.sales);
 
             destroyChart("mobileHomeSales");
             const ctxMobile = document.getElementById("chart-mobile-home-sales").getContext("2d");
+
+            // Gradient fill
+            const grad = ctxMobile.createLinearGradient(0, 0, 0, 250);
+            grad.addColorStop(0, 'rgba(59,130,246,0.45)');
+            grad.addColorStop(1, 'rgba(59,130,246,0.0)');
+
             charts.mobileHomeSales = new Chart(ctxMobile, {
                 type: 'line',
                 data: {
@@ -311,20 +317,44 @@ async function fetchMobileSummary() {
                     datasets: [{
                         data: sales,
                         borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                        borderWidth: 1.5,
+                        backgroundColor: grad,
+                        borderWidth: 3,
                         fill: true,
-                        tension: 0.3,
-                        pointRadius: 2,
+                        tension: 0.45,
+                        pointRadius: 5,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: '#60a5fa',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    animation: { duration: 1000, easing: 'easeInOutQuart' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)',
+                            borderColor: 'rgba(59,130,246,0.4)',
+                            borderWidth: 1,
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12,
+                            cornerRadius: 10,
+                            callbacks: { label: ctx => ` ₹${ctx.raw.toLocaleString()}` }
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 8 } } },
-                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 8 } } }
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                            ticks: { color: '#64748b', font: { size: 11 }, callback: v => '₹' + v.toLocaleString() }
+                        }
                     }
                 }
             });
@@ -878,12 +908,16 @@ async function loadMobileExecutiveReport() {
         if (salesRes.ok) {
             const salesData = await salesRes.json();
             destroyChart("mExecSalesProfit");
-            
-            const dates = salesData.daily_sales.slice(-7).map(s => s.date.substring(5)); // MM-DD
+
+            const dates    = salesData.daily_sales.slice(-7).map(s => s.date.substring(5));
             const revenues = salesData.daily_sales.slice(-7).map(s => s.sales);
-            const profits = revenues.map(r => r * 0.42);
-            
+            const profits  = revenues.map(r => r * 0.42);
+
             const ctx = document.getElementById("m-chart-exec-sales-profit").getContext("2d");
+            const revGrad = ctx.createLinearGradient(0, 0, 0, 250);
+            revGrad.addColorStop(0, 'rgba(59,130,246,0.5)');
+            revGrad.addColorStop(1, 'rgba(59,130,246,0.0)');
+
             charts.mExecSalesProfit = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -893,66 +927,88 @@ async function loadMobileExecutiveReport() {
                             label: 'Revenue',
                             data: revenues,
                             borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                            fill: true,
-                            tension: 0.3,
-                            borderWidth: 1.5,
-                            pointRadius: 1,
+                            backgroundColor: revGrad,
+                            fill: true, tension: 0.45, borderWidth: 3,
+                            pointRadius: 4, pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: '#fff', pointBorderWidth: 2,
+                            pointHoverRadius: 7,
                         },
                         {
                             label: 'Profit',
                             data: profits,
                             borderColor: '#10b981',
                             backgroundColor: 'transparent',
-                            fill: false,
-                            tension: 0.3,
-                            borderWidth: 1.5,
-                            pointRadius: 1,
+                            fill: false, tension: 0.45, borderWidth: 2.5,
+                            borderDash: [6, 3],
+                            pointRadius: 4, pointBackgroundColor: '#10b981',
+                            pointBorderColor: '#fff', pointBorderWidth: 2,
+                            pointHoverRadius: 7,
                         }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { duration: 900, easing: 'easeInOutQuart' },
+                    plugins: {
+                        legend: {
+                            display: true, position: 'top',
+                            labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 }, padding: 16 }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)',
+                            borderColor: 'rgba(59,130,246,0.4)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc',
+                            bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10,
+                            callbacks: { label: ctx => ` ₹${ctx.raw.toLocaleString()}` }
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 8 } } },
-                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 8 } } }
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: v => '₹' + v.toLocaleString() } }
                     }
                 }
             });
         }
-        
+
         if (prodRes.ok) {
             const prodData = await prodRes.json();
             destroyChart("mExecInventoryCat");
-            
+
             const catMap = {};
             prodData.forEach(p => {
                 const val = p.current_stock * p.purchase_price;
                 catMap[p.category] = (catMap[p.category] || 0) + val;
             });
-            
             const categories = Object.keys(catMap);
-            const values = Object.values(catMap);
-            
-            const ctx = document.getElementById("m-chart-exec-inventory-category").getContext("2d");
-            charts.mExecInventoryCat = new Chart(ctx, {
+            const values     = Object.values(catMap);
+            const VIBRANT = ['#3b82f6','#10b981','#f59e0b','#a855f7','#ef4444','#14b8a6','#6366f1'];
+
+            const ctx2 = document.getElementById("m-chart-exec-inventory-category").getContext("2d");
+            charts.mExecInventoryCat = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
                     labels: categories,
                     datasets: [{
                         data: values,
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#6366f1', '#14b8a6'],
-                        borderWidth: 1,
-                        borderColor: '#1e293b'
+                        backgroundColor: VIBRANT,
+                        borderWidth: 3, borderColor: '#0f172a',
+                        hoverOffset: 12, hoverBorderWidth: 0,
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { animateRotate: true, duration: 900 },
+                    cutout: '62%',
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 8, font: { size: 8 } } }
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 }, padding: 12 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)',
+                            borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc',
+                            bodyFont: { size: 13, weight: 'bold' }, padding: 12, cornerRadius: 10,
+                            callbacks: { label: ctx => ` ₹${ctx.raw.toLocaleString()}` }
+                        }
                     }
                 }
             });
@@ -976,78 +1032,110 @@ async function loadMobileSalesReport() {
             
             document.getElementById("m-sales-growth").innerText = `${data.revenue_growth_pct.toFixed(1)}%`;
             
-            // Daily Sales
+            // --- Daily Sales (Gradient Line) ---
             destroyChart("mSalesDailyTrend");
             const ctxDaily = document.getElementById("m-chart-sales-daily-trend").getContext("2d");
+            const dailyGrad = ctxDaily.createLinearGradient(0, 0, 0, 250);
+            dailyGrad.addColorStop(0, 'rgba(99,102,241,0.5)');
+            dailyGrad.addColorStop(1, 'rgba(99,102,241,0.0)');
             charts.mSalesDailyTrend = new Chart(ctxDaily, {
                 type: 'line',
                 data: {
                     labels: data.daily_sales.slice(-7).map(s => s.date.substring(5)),
                     datasets: [{
                         data: data.daily_sales.slice(-7).map(s => s.sales),
-                        borderColor: '#3b82f6',
-                        borderWidth: 1.5,
-                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                        fill: true,
-                        tension: 0.2,
-                        pointRadius: 1
+                        borderColor: '#6366f1',
+                        backgroundColor: dailyGrad,
+                        fill: true, tension: 0.45, borderWidth: 3,
+                        pointRadius: 5, pointBackgroundColor: '#6366f1',
+                        pointBorderColor: '#fff', pointBorderWidth: 2,
+                        pointHoverRadius: 8,
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { duration: 900, easing: 'easeInOutQuart' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(99,102,241,0.4)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc', bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10, callbacks: { label: c => ` ₹${c.raw.toLocaleString()}` }
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 8 } } },
-                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 8 } } }
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: v => '₹' + v.toLocaleString() } }
                     }
                 }
             });
-            
-            // Weekly Sales
+
+            // --- Weekly Sales (Gradient Bars) ---
             destroyChart("mSalesWeekly");
             const ctxWeekly = document.getElementById("m-chart-sales-weekly").getContext("2d");
+            const weeklyGrad = ctxWeekly.createLinearGradient(0, 0, 0, 250);
+            weeklyGrad.addColorStop(0, '#10b981');
+            weeklyGrad.addColorStop(1, 'rgba(16,185,129,0.2)');
             charts.mSalesWeekly = new Chart(ctxWeekly, {
                 type: 'bar',
                 data: {
                     labels: data.weekly_sales.map(w => `W${w.week.slice(6)}`),
                     datasets: [{
                         data: data.weekly_sales.map(w => w.sales),
-                        backgroundColor: '#10b981',
-                        borderRadius: 2
+                        backgroundColor: weeklyGrad,
+                        borderRadius: 8, borderSkipped: false,
+                        hoverBackgroundColor: '#34d399',
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { duration: 900, easing: 'easeOutBounce' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(16,185,129,0.4)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc', bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10, callbacks: { label: c => ` ₹${c.raw.toLocaleString()}` }
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 8 } } },
-                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 8 } } }
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: v => '₹' + v.toLocaleString() } }
                     }
                 }
             });
-            
-            // Monthly Sales
+
+            // --- Monthly Sales (Gradient Bars) ---
             destroyChart("mSalesMonthly");
             const ctxMonthly = document.getElementById("m-chart-sales-monthly").getContext("2d");
+            const monthlyGrad = ctxMonthly.createLinearGradient(0, 0, 0, 250);
+            monthlyGrad.addColorStop(0, '#f59e0b');
+            monthlyGrad.addColorStop(1, 'rgba(245,158,11,0.15)');
             charts.mSalesMonthly = new Chart(ctxMonthly, {
                 type: 'bar',
                 data: {
                     labels: data.monthly_sales.map(m => m.month),
                     datasets: [{
                         data: data.monthly_sales.map(m => m.sales),
-                        backgroundColor: '#f59e0b',
-                        borderRadius: 2
+                        backgroundColor: monthlyGrad,
+                        borderRadius: 8, borderSkipped: false,
+                        hoverBackgroundColor: '#fcd34d',
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { duration: 900, easing: 'easeOutBounce' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(245,158,11,0.4)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc', bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10, callbacks: { label: c => ` ₹${c.raw.toLocaleString()}` }
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 8 } } },
-                        y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 8 } } }
+                        x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: v => '₹' + v.toLocaleString() } }
                     }
                 }
             });
@@ -1068,37 +1156,45 @@ async function loadMobileProductsReport() {
         if (prodRes.ok && productsRes.ok) {
             const data = await prodRes.json();
             
-            // Top Selling
+            // --- Top Selling (Horizontal Gradient Bars) ---
             destroyChart("mProductsTopSelling");
             const ctxTop = document.getElementById("m-chart-products-top-selling").getContext("2d");
+            const topN = data.top_selling.slice(0, 5);
+            const topColors = ['#3b82f6','#6366f1','#a855f7','#ec4899','#14b8a6'];
             charts.mProductsTopSelling = new Chart(ctxTop, {
                 type: 'bar',
                 data: {
-                    labels: data.top_selling.slice(0, 5).map(t => t.product_name),
+                    labels: topN.map(t => t.product_name),
                     datasets: [{
-                        data: data.top_selling.slice(0, 5).map(t => t.quantity_sold),
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 2
+                        data: topN.map(t => t.quantity_sold),
+                        backgroundColor: topColors,
+                        borderRadius: 8, borderSkipped: false,
+                        hoverBackgroundColor: topColors.map(c => c + 'cc'),
                     }]
                 },
                 options: {
                     indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { duration: 900, easing: 'easeInOutQuart' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(99,102,241,0.4)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc', bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10, callbacks: { label: c => ` ${c.raw} units sold` }
+                        }
+                    },
                     scales: {
-                        x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b', font: { size: 8 } } },
-                        y: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 8 } } }
+                        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 } } },
+                        y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { size: 11 } } }
                     }
                 }
             });
-            
-            // Velocity distribution
+
+            // --- Velocity Doughnut (Rich colours) ---
             const counts = { "Fast Moving": 0, "Medium Moving": 0, "Slow Moving": 0, "Dead Stock": 0 };
-            data.classifications.forEach(c => {
-                counts[c.classification] = (counts[c.classification] || 0) + 1;
-            });
-            
+            data.classifications.forEach(c => { counts[c.classification] = (counts[c.classification] || 0) + 1; });
+
             destroyChart("mProductsVelocityDist");
             const ctxDist = document.getElementById("m-chart-products-velocity-distribution").getContext("2d");
             charts.mProductsVelocityDist = new Chart(ctxDist, {
@@ -1107,14 +1203,22 @@ async function loadMobileProductsReport() {
                     labels: Object.keys(counts),
                     datasets: [{
                         data: Object.values(counts),
-                        backgroundColor: ['#ef4444', '#3b82f6', '#f59e0b', '#a855f7']
+                        backgroundColor: ['#10b981','#3b82f6','#f59e0b','#ef4444'],
+                        borderWidth: 3, borderColor: '#0f172a',
+                        hoverOffset: 12, hoverBorderWidth: 0,
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { animateRotate: true, duration: 900 },
+                    cutout: '60%',
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 8, font: { size: 8 } } }
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 }, padding: 12 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc', bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10
+                        }
                     }
                 }
             });
@@ -1164,19 +1268,27 @@ async function loadMobileInventoryReport() {
             destroyChart("mInventoryAlertsGauge");
             const ctxGauge = document.getElementById("m-chart-inventory-alerts-gauge").getContext("2d");
             charts.mInventoryAlertsGauge = new Chart(ctxGauge, {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
                     labels: ['Low Stock', 'Overstock', 'Healthy'],
                     datasets: [{
                         data: [lowStockCount, overstockCount, healthyCount],
-                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981']
+                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
+                        borderWidth: 4, borderColor: '#0f172a',
+                        hoverOffset: 14, hoverBorderWidth: 0,
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
+                    animation: { animateRotate: true, duration: 1000 },
+                    cutout: '65%',
                     plugins: {
-                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 8, font: { size: 8 } } }
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 12 }, padding: 14 } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1,
+                            titleColor: '#94a3b8', bodyColor: '#f8fafc', bodyFont: { size: 13, weight: 'bold' },
+                            padding: 12, cornerRadius: 10, callbacks: { label: c => ` ${c.raw} products` }
+                        }
                     }
                 }
             });

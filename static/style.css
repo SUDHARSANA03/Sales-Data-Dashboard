@@ -332,10 +332,16 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius); padding: 20px;
     backdrop-filter: blur(10px);
+    transition: var(--transition);
+}
+.kpi-card:hover {
+    border-color: rgba(59,130,246,0.3);
+    box-shadow: 0 0 24px rgba(59,130,246,0.1);
+    transform: translateY(-2px);
 }
 .kpi-card > i { width: 28px; height: 28px; color: var(--primary); flex-shrink: 0; }
 .kpi-label { font-size: 11px; color: var(--text-muted); }
-.kpi-card h3 { font-family: var(--font-head); font-size: 22px; font-weight: 700; margin-top: 2px; }
+.kpi-card h3 { font-family: var(--font-head); font-size: 22px; font-weight: 700; margin-top: 2px; color: var(--primary); }
 
 .kpi-strip {
     display: grid;
@@ -376,9 +382,24 @@ body {
     border-radius: var(--radius);
     padding: 20px;
     backdrop-filter: blur(10px);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.panel:hover {
+    border-color: rgba(59,130,246,0.2);
+    box-shadow: 0 0 30px rgba(59,130,246,0.06);
 }
 .panel-header { margin-bottom: 16px; }
-.panel-header h4 { font-family: var(--font-head); font-size: 14px; font-weight: 600; color: var(--text-sec); }
+.panel-header h4 {
+    font-family: var(--font-head);
+    font-size: 14px; font-weight: 600; color: var(--text-sec);
+    display: flex; align-items: center; gap: 8px;
+}
+.panel-header h4::before {
+    content: '';
+    width: 3px; height: 14px;
+    background: linear-gradient(180deg, var(--primary), #60a5fa);
+    border-radius: 2px; display: inline-block;
+}
 
 /* =============================================
    GRID LAYOUTS
@@ -399,7 +420,7 @@ body {
 /* =============================================
    CHARTS
    ============================================= */
-.chart-wrapper-lg { position: relative; height: 250px; width: 100%; }
+.chart-wrapper-lg { position: relative; height: 280px; width: 100%; }
 
 /* =============================================
    QUICK ACTIONS
