@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DemandSense - AI Business Intelligence Dashboard</title>
+    <meta name="description" content="DemandSense AI-Powered Sales & Inventory BI Dashboard for small businesses. Real-time analytics, demand forecasting, and intelligent inventory management.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== LOGIN OVERLAY ===================== -->
+<div id="login-overlay" class="login-overlay active">
+    <div class="login-card">
+        <div class="login-logo">
+            <div class="logo-icon-lg"><i data-lucide="trending-up"></i></div>
+            <h1>DemandSense</h1>
+            <p>AI-Powered Business Intelligence</p>
+        </div>
+        <div class="auth-tabs">
+            <button id="auth-tab-login" class="auth-tab-btn active">Login</button>
+            <button id="auth-tab-register" class="auth-tab-btn">Register</button>
+        </div>
+        <!-- Login Form -->
+        <form id="phone-login-form" class="auth-form active">
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="login-email" value="owner@demandsense.com" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="login-password" value="password123" required>
+            </div>
+            <button type="submit" class="flutter-btn primary full-width">Sign In</button>
+            <p class="form-tip">Demo: owner@demandsense.com / password123</p>
+        </form>
+        <!-- Register Form -->
+        <form id="phone-register-form" class="auth-form">
+            <div class="input-group">
+                <label>Full Name</label>
+                <input type="text" id="reg-name" placeholder="John Doe" required>
+            </div>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="reg-email" placeholder="john@store.com" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="reg-password" placeholder="••••••••" required>
+            </div>
+            <div class="input-group">
+                <label>Business Category</label>
+                <select id="reg-category">
+                    <option value="Grocery">Grocery / Supermarket</option>
+                    <option value="Bakery">Bakery / Confectionery</option>
+                    <option value="Pharmacy">Pharmacy / Drugstore</option>
+                    <option value="Retail">Retail Clothing / Store</option>
+                </select>
+            </div>
+            <button type="submit" class="flutter-btn primary full-width">Create Account</button>
+        </form>
+    </div>
+</div>
+
+<!-- ===================== MAIN DASHBOARD LAYOUT ===================== -->
+<div id="dashboard-shell" class="dashboard-shell hidden">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="logo-icon"><i data-lucide="trending-up"></i></div>
+            <span class="logo-label">DemandSense</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <button class="phone-nav-item active" onclick="switchPhoneView('home')" data-view="home">
+                <i data-lucide="home"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="phone-nav-item" onclick="switchPhoneView('products')" data-view="products">
+                <i data-lucide="package"></i>
+                <span>Inventory</span>
+            </button>
+            <button class="phone-nav-item" onclick="switchPhoneView('record-sale')" data-view="record-sale">
+                <i data-lucide="shopping-cart"></i>
+                <span>Record Sale</span>
+            </button>
+            <button class="phone-nav-item" onclick="switchPhoneView('analytics')" data-view="analytics">
+                <i data-lucide="pie-chart"></i>
+                <span>Analytics</span>
+            </button>
+            <button class="phone-nav-item" id="phone-nav-bell-wrap" onclick="switchPhoneView('alerts')" data-view="alerts">
+                <i data-lucide="bell"></i>
+                <span class="nav-badge-dot" id="phone-nav-bell-badge" style="display:none;"></span>
+                <span>Alerts</span>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button class="sidebar-op-btn" id="phone-export-pdf-btn">
+                <i data-lucide="file-text"></i><span>Export PDF</span>
+            </button>
+            <button class="sidebar-op-btn" id="phone-export-excel-btn">
+                <i data-lucide="file-spreadsheet"></i><span>Export Excel</span>
+            </button>
+            <button class="sidebar-op-btn danger" id="phone-reseed-db-btn">
+                <i data-lucide="refresh-cw"></i><span>Reset Data</span>
+            </button>
+            <button class="sidebar-op-btn logout" id="phone-logout-btn">
+                <i data-lucide="log-out"></i><span>Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <div class="main-area">
+
+        <!-- TOP BAR -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <div class="user-greeting">
+                    <span class="avatar" id="top-avatar">DS</span>
+                    <div>
+                        <p class="greeting-sub">Welcome back,</p>
+                        <h3 id="phone-owner-name">Store Owner</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="top-bar-center">
+                <div class="biz-pill">
+                    <span id="phone-biz-name">Your Business</span>
+                    <span class="badge" id="phone-biz-cat">Grocery</span>
+                </div>
+            </div>
+            <div class="top-bar-right">
+                <div class="system-status">
+                    <span class="status-indicator online"></span>
+                    <span>API Connected</span>
+                </div>
+                <span class="notif-badge-top" id="phone-notif-count-header">0</span>
+            </div>
+        </header>
+
+        <!-- VIEWS CONTAINER -->
+        <div class="views-container">
+
+            <!-- ===== VIEW: HOME DASHBOARD ===== -->
+            <div id="phone-view-home" class="phone-view active">
+                <div class="page-title">
+                    <h2>Business Dashboard</h2>
+                    <p id="phone-biz-addr"><i data-lucide="map-pin"></i> Loading...</p>
+                </div>
+
+                <!-- Health Score + Stats Row -->
+                <div class="dashboard-kpi-row">
+                    <div class="health-card">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <path id="phone-health-progress" class="circle" stroke-dasharray="75, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <text x="18" y="20.35" class="percentage" id="phone-health-score-text">75%</text>
+                        </svg>
+                        <div>
+                            <h4>Business Health</h4>
+                            <p>Maintain healthy reorder schedules to keep your score high.</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <i data-lucide="indian-rupee"></i>
+                        <div>
+                            <span class="kpi-label">Total Revenue</span>
+                            <h3 id="phone-stat-revenue">₹0.00</h3>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <i data-lucide="box"></i>
+                        <div>
+                            <span class="kpi-label">Stock Value</span>
+                            <h3 id="phone-stat-stock">₹0.00</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sales Trend Chart -->
+                <div class="content-grid-2">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h4>Weekly Sales Trend (₹)</h4>
+                        </div>
+                        <div class="chart-wrapper-lg">
+                            <canvas id="chart-mobile-home-sales"></canvas>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h4>Quick Actions</h4>
+                        </div>
+                        <div class="quick-actions-grid">
+                            <button class="qa-btn" onclick="switchPhoneView('record-sale')">
+                                <i data-lucide="shopping-cart"></i>
+                                <span>Record Sale</span>
+                            </button>
+                            <button class="qa-btn" onclick="switchPhoneView('products')">
+                                <i data-lucide="package"></i>
+                                <span>Inventory</span>
+                            </button>
+                            <button class="qa-btn" onclick="switchPhoneView('analytics')">
+                                <i data-lucide="pie-chart"></i>
+                                <span>Analytics</span>
+                            </button>
+                            <button class="qa-btn" onclick="switchPhoneView('alerts')">
+                                <i data-lucide="bell"></i>
+                                <span>Alerts</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== VIEW: PRODUCT CATALOG ===== -->
+            <div id="phone-view-products" class="phone-view">
+                <div class="page-title-row">
+                    <div>
+                        <h2>Inventory Catalog</h2>
+                        <p>Manage all your products and stock levels</p>
+                    </div>
+                    <button class="flutter-btn primary" id="phone-add-prod-btn">
+                        <i data-lucide="plus"></i> Add Product
+                    </button>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="phone-search-bar">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="phone-product-search" placeholder="Search catalog...">
+                        </div>
+                    </div>
+                    <div id="phone-product-list-container" class="product-grid">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== VIEW: ADD/EDIT PRODUCT FORM ===== -->
+            <div id="phone-view-product-form" class="phone-view">
+                <div class="page-title-row">
+                    <div>
+                        <h2 id="product-form-title">Add Product</h2>
+                        <p>Fill in product details below</p>
+                    </div>
+                    <button class="flutter-btn secondary" onclick="switchPhoneView('products')">
+                        <i data-lucide="chevron-left"></i> Back
+                    </button>
+                </div>
+                <div class="panel form-panel">
+                    <form id="product-crud-form" class="desktop-form">
+                        <input type="hidden" id="crud-prod-id">
+                        <div class="form-grid-2">
+                            <div class="input-group">
+                                <label>Product Name</label>
+                                <input type="text" id="crud-name" placeholder="e.g. Fresh Apples" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Category</label>
+                                <select id="crud-category">
+                                    <option value="Dairy">Dairy</option>
+                                    <option value="Produce">Produce</option>
+                                    <option value="Pantry">Pantry</option>
+                                    <option value="Household">Household</option>
+                                    <option value="Beverages">Beverages</option>
+                                    <option value="Frozen">Frozen</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Purchase Price (₹)</label>
+                                <input type="number" id="crud-purchase-price" step="0.01" min="0.01" value="1.00" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Selling Price (₹)</label>
+                                <input type="number" id="crud-selling-price" step="0.01" min="0.01" value="2.00" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Current Stock</label>
+                                <input type="number" id="crud-stock" min="0" value="10" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Min Reorder Threshold</label>
+                                <input type="number" id="crud-reorder-qty" min="0" value="10" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Supplier Name</label>
+                                <input type="text" id="crud-supplier" placeholder="Wholesale Growers Co.">
+                            </div>
+                            <div class="input-group">
+                                <label>Supplier Email / Phone</label>
+                                <input type="text" id="crud-contact" placeholder="sales@wholesalers.com">
+                            </div>
+                        </div>
+                        <button type="submit" class="flutter-btn primary" id="product-form-submit-btn">Save Product</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ===== VIEW: RECORD SALE ===== -->
+            <div id="phone-view-record-sale" class="phone-view">
+                <div class="page-title">
+                    <h2>New Transaction</h2>
+                    <p>Record a sale against your inventory</p>
+                </div>
+                <div class="content-grid-2">
+                    <div class="panel form-panel">
+                        <form id="record-sale-form" class="desktop-form">
+                            <div class="input-group">
+                                <label>Select Product</label>
+                                <select id="sale-product-select" required></select>
+                            </div>
+                            <div class="input-group">
+                                <label>Quantity</label>
+                                <div class="qty-stepper">
+                                    <button type="button" class="stepper-btn" id="sale-qty-minus">−</button>
+                                    <input type="number" id="sale-quantity" value="1" min="1" required>
+                                    <button type="button" class="stepper-btn" id="sale-qty-plus">+</button>
+                                </div>
+                                <span class="stock-indicator" id="sale-stock-hint">Available: 0 units</span>
+                            </div>
+                            <div class="input-group">
+                                <label>Unit Price Override (₹) — Optional</label>
+                                <input type="number" id="sale-price-override" step="0.01" min="0.01">
+                                <span class="field-info">Leave blank to use default selling price</span>
+                            </div>
+                            <div class="input-group">
+                                <label>Customer (Optional)</label>
+                                <select id="sale-customer-select">
+                                    <option value="">Walk-in Customer</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Payment Mode</label>
+                                <select id="sale-payment-method">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Credit / Debit Card</option>
+                                    <option value="Mobile UPI">Mobile UPI</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="flutter-btn primary full-width" style="margin-top:8px;">Record Transaction</button>
+                        </form>
+                    </div>
+                    <div class="panel invoice-preview">
+                        <h4>Invoice Preview</h4>
+                        <div class="invoice-total-box">
+                            <span>Total Amount</span>
+                            <h2 id="sale-total-val">₹0.00</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== VIEW: BI ANALYTICS ===== -->
+            <div id="phone-view-analytics" class="phone-view">
+                <div class="page-title-row">
+                    <div>
+                        <h2>Business Intelligence</h2>
+                        <p>Deep analytics powered by AI and ML models</p>
+                    </div>
+                    <select id="mobile-report-select" class="report-select">
+                        <option value="executive">Executive Summary</option>
+                        <option value="sales">Sales Analytics</option>
+                        <option value="products">Product Intelligence</option>
+                        <option value="inventory">Inventory Status</option>
+                        <option value="forecast">Demand Forecasting</option>
+                        <option value="customers">Customer Insights</option>
+                    </select>
+                </div>
+
+                <!-- EXECUTIVE -->
+                <div id="m-report-executive" class="mobile-report-section active">
+                    <div class="kpi-strip">
+                        <div class="kpi-strip-item"><span>Revenue</span><h3 id="m-metric-revenue">₹0</h3></div>
+                        <div class="kpi-strip-item"><span>Profit</span><h3 id="m-metric-profit">₹0</h3></div>
+                        <div class="kpi-strip-item"><span>Invoices</span><h3 id="m-metric-sales">0</h3></div>
+                        <div class="kpi-strip-item"><span>Stock Value</span><h3 id="m-metric-stock">₹0</h3></div>
+                        <div class="kpi-strip-item"><span>Health Score</span><h3 id="m-metric-health">0</h3></div>
+                        <div class="kpi-strip-item"><span>Gross Margin</span><h3 id="m-metric-margin">0%</h3></div>
+                    </div>
+                    <div class="content-grid-2">
+                        <div class="panel">
+                            <div class="panel-header"><h4>Revenue & Profit Trend</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-exec-sales-profit"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Inventory Valuation by Category</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-exec-inventory-category"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SALES -->
+                <div id="m-report-sales" class="mobile-report-section">
+                    <div class="kpi-strip">
+                        <div class="kpi-strip-item"><span>Total Revenue</span><h3 id="m-sales-revenue">₹0</h3></div>
+                        <div class="kpi-strip-item"><span>Daily Average</span><h3 id="m-sales-daily-avg">₹0</h3></div>
+                        <div class="kpi-strip-item span-2"><span>Monthly Growth</span><h3 id="m-sales-growth">0%</h3></div>
+                    </div>
+                    <div class="content-grid-3">
+                        <div class="panel">
+                            <div class="panel-header"><h4>Daily Sales Trend</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-sales-daily-trend"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Weekly Summary</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-sales-weekly"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Monthly Revenue</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-sales-monthly"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PRODUCTS -->
+                <div id="m-report-products" class="mobile-report-section">
+                    <div class="content-grid-3">
+                        <div class="panel">
+                            <div class="panel-header"><h4>Top Selling Products</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-products-top-selling"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Velocity Distribution</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-products-velocity-distribution"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Classification Ledger</h4></div>
+                            <div class="table-scroll">
+                                <table class="data-table">
+                                    <thead><tr><th>Product</th><th>Stock</th><th>Class</th></tr></thead>
+                                    <tbody id="m-product-classification-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INVENTORY -->
+                <div id="m-report-inventory" class="mobile-report-section">
+                    <div class="kpi-strip">
+                        <div class="kpi-strip-item danger"><span>Low Stock</span><h3 id="m-inv-low-count">0</h3></div>
+                        <div class="kpi-strip-item warning"><span>Overstock</span><h3 id="m-inv-overstock-count">0</h3></div>
+                        <div class="kpi-strip-item success"><span>Healthy</span><h3 id="m-inv-healthy-count">0</h3></div>
+                    </div>
+                    <div class="content-grid-2">
+                        <div class="panel">
+                            <div class="panel-header"><h4>Stock Alert Breakdown</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-inventory-alerts-gauge"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Smart Reorder Recommendations</h4></div>
+                            <div class="table-scroll">
+                                <table class="data-table">
+                                    <thead><tr><th>Product</th><th>Reorder Qty</th><th>Action</th></tr></thead>
+                                    <tbody id="m-inventory-replenish-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORECAST -->
+                <div id="m-report-forecast" class="mobile-report-section">
+                    <div class="page-title-row" style="margin-bottom: 16px;">
+                        <h4>Demand Forecast Model</h4>
+                        <select id="m-forecast-product-select" class="report-select">
+                            <option value="All">Overall Store Sales</option>
+                        </select>
+                    </div>
+                    <div class="mobile-forecast-cards" id="m-forecast-metrics-wrap" style="display:none; margin-bottom: 20px;">
+                        <div class="m-forecast-card glow-blue">
+                            <span class="card-lbl">Next Week Demand</span>
+                            <h3 id="m-forecast-week">0 units</h3>
+                        </div>
+                        <div class="m-forecast-card glow-green">
+                            <span class="card-lbl">Next Month Demand</span>
+                            <h3 id="m-forecast-month">0 units</h3>
+                        </div>
+                        <div class="m-forecast-card" id="m-forecast-stockout-card">
+                            <span class="card-lbl">Expected Stockout</span>
+                            <h3 id="m-forecast-stockout">-- days</h3>
+                        </div>
+                        <div class="m-forecast-card">
+                            <span class="card-lbl">Suggested Reorder</span>
+                            <h3 id="m-forecast-reorder">0 units</h3>
+                        </div>
+                    </div>
+                    <div class="content-grid-2">
+                        <div class="panel">
+                            <div class="panel-header"><h4>30-Day Demand Projection</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-forecast-overall"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Stockout Risk Table</h4></div>
+                            <div class="table-scroll">
+                                <table class="data-table">
+                                    <thead><tr><th>Product</th><th>Next Week</th><th>Stockout</th></tr></thead>
+                                    <tbody id="m-forecast-table-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUSTOMERS -->
+                <div id="m-report-customers" class="mobile-report-section">
+                    <div class="content-grid-3">
+                        <div class="panel">
+                            <div class="panel-header"><h4>Weekday Transaction Distribution</h4></div>
+                            <div class="chart-wrapper-lg"><canvas id="m-chart-customers-patterns"></canvas></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Co-purchase Affinities</h4></div>
+                            <div class="table-scroll">
+                                <table class="data-table">
+                                    <thead><tr><th>Product A + B</th><th>Co-sales</th></tr></thead>
+                                    <tbody id="m-customer-affinity-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-header"><h4>Top Loyal Customers</h4></div>
+                            <div class="table-scroll">
+                                <table class="data-table">
+                                    <thead><tr><th>Name</th><th>Visits</th><th>Total Spent</th></tr></thead>
+                                    <tbody id="m-customer-repeat-tbody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- ===== VIEW: ALERTS ===== -->
+            <div id="phone-view-alerts" class="phone-view">
+                <div class="page-title-row">
+                    <div>
+                        <h2>Notifications & Alerts</h2>
+                        <p>Inventory alerts, demand signals, and system updates</p>
+                    </div>
+                    <span class="notif-badge" id="phone-notif-count-header">0</span>
+                </div>
+                <div class="panel">
+                    <div id="phone-notifications-list" class="notifications-list">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- end views-container -->
+    </div><!-- end main-area -->
+</div><!-- end dashboard-shell -->
+
+<script src="app.js"></script>
+</body>
+</html>
