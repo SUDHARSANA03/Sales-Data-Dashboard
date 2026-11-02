@@ -1,6 +1,282 @@
 // static/app.js
 
-const API_BASE = "http://127.0.0.1:8000/api";
+// Dynamic API_BASE and Demo Mode Support for GitHub Pages & Cloud Deployments
+let savedApiBase = localStorage.getItem("demandsense_api_base");
+let API_BASE = savedApiBase || (
+    window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? "http://127.0.0.1:8000/api"
+        : (window.location.protocol.startsWith("http") && !window.location.hostname.includes("github.io")
+            ? `${window.location.origin}/api`
+            : "http://127.0.0.1:8000/api")
+);
+
+let isDemoMode = localStorage.getItem("demandsense_demo_mode") === "true";
+if (window.location.hostname.includes("github.io") && !savedApiBase) {
+    isDemoMode = true;
+}
+
+// In-Memory Mock Store for Standalone / GitHub Pages Demo
+const demoStore = {
+    user: {
+        id: 1,
+        full_name: "Sudharsana",
+        email: "owner@demandsense.com",
+        business: {
+            id: 1,
+            name: "DemandSense Supermarket",
+            category: "Supermarket & Groceries",
+            address: "100 Retail Boulevard, City Center",
+            phone: "+1 (555) 019-2834"
+        }
+    },
+    products: [
+        { id: 1, name: "Premium Basmati Rice (5kg)", category: "Grains & Rice", cost_price: 280, selling_price: 360, current_stock: 42, min_reorder_qty: 15 },
+        { id: 2, name: "Cold-Pressed Sunflower Oil (1L)", category: "Oils", cost_price: 130, selling_price: 185, current_stock: 28, min_reorder_qty: 10 },
+        { id: 3, name: "Organic Whole Wheat Flour (10kg)", category: "Flour & Bakery", cost_price: 320, selling_price: 410, current_stock: 19, min_reorder_qty: 12 },
+        { id: 4, name: "Farm Fresh Honey (500g)", category: "Spreads & Sweeteners", cost_price: 175, selling_price: 245, current_stock: 8, min_reorder_qty: 10 },
+        { id: 5, name: "Artisan Dark Roast Coffee (250g)", category: "Beverages", cost_price: 240, selling_price: 350, current_stock: 34, min_reorder_qty: 10 },
+        { id: 6, name: "Swiss Dairy Chocolate (100g)", category: "Snacks & Confectionery", cost_price: 85, selling_price: 120, current_stock: 55, min_reorder_qty: 20 },
+        { id: 7, name: "Crunchy Almond Butter (350g)", category: "Spreads & Sweeteners", cost_price: 310, selling_price: 420, current_stock: 6, min_reorder_qty: 8 },
+        { id: 8, name: "Natural Greek Yogurt (400g)", category: "Dairy & Chilled", cost_price: 70, selling_price: 98, current_stock: 14, min_reorder_qty: 10 }
+    ],
+    customers: [
+        { id: 1, name: "Homer Simpson", phone: "+1 (555) 742-0199", email: "homer.simpson@springfield.org", segment: "Loyal" },
+        { id: 2, name: "Marge Simpson", phone: "+1 (555) 742-0198", email: "marge.simpson@springfield.org", segment: "Loyal" },
+        { id: 3, name: "Ned Flanders", phone: "+1 (555) 742-1354", email: "ned.flanders@leftorium.com", segment: "Regular" },
+        { id: 4, name: "Moe Szyslak", phone: "+1 (555) 123-4567", email: "moe@tavernspringfield.com", segment: "Occasional" },
+        { id: 5, name: "Apu Nahasapeemapetilon", phone: "+1 (555) 999-8888", email: "apu@quick-e-mart.com", segment: "Regular" }
+    ],
+    sales: [
+        { id: 101, product_id: 1, product_name: "Premium Basmati Rice (5kg)", customer_id: 1, customer_name: "Homer Simpson", customer_email: "homer.simpson@springfield.org", quantity: 2, unit_price: 360, total_sales: 720, payment_method: "UPI", date: "2026-11-02", invoice_number: "INV-20261102-0101" },
+        { id: 102, product_id: 2, product_name: "Cold-Pressed Sunflower Oil (1L)", customer_id: 2, customer_name: "Marge Simpson", customer_email: "marge.simpson@springfield.org", quantity: 3, unit_price: 185, total_sales: 555, payment_method: "Card", date: "2026-11-02", invoice_number: "INV-20261102-0102" },
+        { id: 103, product_id: 5, product_name: "Artisan Dark Roast Coffee (250g)", customer_id: 3, customer_name: "Ned Flanders", customer_email: "ned.flanders@leftorium.com", quantity: 1, unit_price: 350, total_sales: 350, payment_method: "Cash", date: "2026-11-01", invoice_number: "INV-20261101-0103" }
+    ],
+    notifications: [
+        { id: 1, message: "Farm Fresh Honey stock level is low (8 units left). Reorder recommended.", type: "low_stock", is_read: false, date: "2026-11-02" },
+        { id: 2, message: "Crunchy Almond Butter stock level is low (6 units left). Reorder recommended.", type: "low_stock", is_read: false, date: "2026-11-02" },
+        { id: 3, message: "Basmati Rice demand is projected to spike +32% next week.", type: "high_demand", is_read: true, date: "2026-11-01" }
+    ]
+};
+
+// Global Fetch Interceptor for seamless GitHub Pages demo execution
+const _originalFetch = window.fetch;
+window.fetch = async function(resource, init) {
+    const urlStr = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
+    if (isDemoMode && urlStr.startsWith(API_BASE)) {
+        return mockApiResponse(urlStr, init);
+    }
+    try {
+        const resp = await _originalFetch(resource, init);
+        return resp;
+    } catch (netErr) {
+        if (urlStr.startsWith(API_BASE)) {
+            console.warn("[DEMO FALLBACK] Live backend unreachable at " + API_BASE + ". Activating Demo Mode.", netErr);
+            isDemoMode = true;
+            localStorage.setItem("demandsense_demo_mode", "true");
+            return mockApiResponse(urlStr, init);
+        }
+        throw netErr;
+    }
+};
+
+function createJsonResponse(data, status = 200) {
+    return new Response(JSON.stringify(data), {
+        status: status,
+        headers: { "Content-Type": "application/json" }
+    });
+}
+
+function mockApiResponse(urlStr, init = {}) {
+    const method = (init.method || "GET").toUpperCase();
+    const path = urlStr.replace(API_BASE, "").split("?")[0];
+    
+    // Auth routes
+    if (path === "/auth/login") {
+        return createJsonResponse({ access_token: "demo_token_pages", token_type: "bearer" });
+    }
+    if (path === "/auth/register") {
+        return createJsonResponse({ message: "Registered demo user" });
+    }
+    if (path === "/auth/profile") {
+        return createJsonResponse(demoStore.user);
+    }
+    if (path === "/auth/business") {
+        return createJsonResponse(demoStore.user.business);
+    }
+
+    // Analytics routes
+    if (path === "/analytics/summary") {
+        return createJsonResponse({
+            total_revenue: 148290.00,
+            revenue_growth: 18.2,
+            total_profit: 41850.00,
+            profit_growth: 14.5,
+            total_sales_count: 384,
+            units_growth: 9.2,
+            avg_margin: 28.4,
+            top_selling_product: "Premium Basmati Rice (5kg)",
+            active_customers: 24,
+            inventory_health_score: 94
+        });
+    }
+    if (path === "/analytics/sales") {
+        const trend = [];
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            trend.push({
+                date: d.toISOString().split("T")[0],
+                total_sales: Math.floor(4200 + Math.sin(i) * 1100 + (14 - i) * 150),
+                profit: Math.floor(1200 + Math.sin(i) * 350 + (14 - i) * 45),
+                quantity: Math.floor(16 + Math.sin(i) * 5 + (14 - i))
+            });
+        }
+        return createJsonResponse(trend);
+    }
+    if (path === "/analytics/products") {
+        return createJsonResponse(demoStore.products.map(p => ({
+            product_id: p.id,
+            product_name: p.name,
+            category: p.category,
+            total_sales: (p.selling_price * (p.id * 12 + 10)),
+            units_sold: (p.id * 12 + 10),
+            profit: ((p.selling_price - p.cost_price) * (p.id * 12 + 10)),
+            velocity: p.id % 2 === 0 ? "Fast" : "Moderate",
+            margin_pct: Math.round(((p.selling_price - p.cost_price) / p.selling_price) * 100)
+        })));
+    }
+    if (path === "/analytics/forecast") {
+        const points = [];
+        for (let i = 1; i <= 30; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            const predicted = Math.floor(25 + i * 0.8 + Math.sin(i) * 4);
+            points.push({
+                date: d.toISOString().split("T")[0],
+                predicted_units: predicted,
+                predicted_sales: predicted * 185,
+                lower_bound: Math.max(5, predicted - 6),
+                upper_bound: predicted + 7
+            });
+        }
+        return createJsonResponse(points);
+    }
+    if (path === "/analytics/customers") {
+        return createJsonResponse(demoStore.customers.map((c, idx) => ({
+            customer_id: c.id,
+            name: c.name,
+            email: c.email,
+            segment: c.segment,
+            total_spent: 1200 + idx * 850,
+            orders_count: 3 + idx * 2
+        })));
+    }
+
+    // Products CRUD
+    if (path === "/products") {
+        if (method === "GET") return createJsonResponse(demoStore.products);
+        if (method === "POST") {
+            const body = JSON.parse(init.body || "{}");
+            const newProd = { id: demoStore.products.length + 1, ...body, current_stock: parseInt(body.current_stock || 0) };
+            demoStore.products.unshift(newProd);
+            return createJsonResponse(newProd);
+        }
+    }
+    if (path.startsWith("/products/")) {
+        const id = parseInt(path.split("/")[2]);
+        if (method === "DELETE") {
+            demoStore.products = demoStore.products.filter(p => p.id !== id);
+            return createJsonResponse({ message: "Product deleted" });
+        }
+        if (method === "PUT") {
+            const body = JSON.parse(init.body || "{}");
+            const idx = demoStore.products.findIndex(p => p.id === id);
+            if (idx >= 0) demoStore.products[idx] = { ...demoStore.products[idx], ...body };
+            return createJsonResponse(demoStore.products[idx]);
+        }
+    }
+
+    // Customers
+    if (path === "/customers") {
+        if (method === "GET") return createJsonResponse(demoStore.customers);
+        if (method === "POST") {
+            const body = JSON.parse(init.body || "{}");
+            const newCust = { id: demoStore.customers.length + 1, ...body };
+            demoStore.customers.push(newCust);
+            return createJsonResponse(newCust);
+        }
+    }
+
+    // Sales transactions
+    if (path === "/sales") {
+        if (method === "GET") return createJsonResponse(demoStore.sales);
+        if (method === "POST") {
+            const body = JSON.parse(init.body || "{}");
+            const prod = demoStore.products.find(p => p.id === parseInt(body.product_id));
+            const cust = demoStore.customers.find(c => c.id === parseInt(body.customer_id));
+            const qty = parseInt(body.quantity || 1);
+            const price = parseFloat(body.unit_price || (prod ? prod.selling_price : 100));
+            const invNum = `INV-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${demoStore.sales.length + 101}`;
+            
+            if (prod) {
+                prod.current_stock = Math.max(0, prod.current_stock - qty);
+            }
+            const newSale = {
+                id: demoStore.sales.length + 101,
+                product_id: body.product_id,
+                product_name: prod ? prod.name : "Product Item",
+                customer_id: body.customer_id || null,
+                customer_name: cust ? cust.name : (body.customer_name || "Walk-in Customer"),
+                customer_email: body.customer_email || (cust ? cust.email : "guest@store.com"),
+                customer_phone: cust ? cust.phone : "",
+                quantity: qty,
+                unit_price: price,
+                total_sales: qty * price,
+                payment_method: body.payment_method || "Cash",
+                date: new Date().toISOString().split("T")[0],
+                invoice_number: invNum,
+                email_sent: Boolean(body.customer_email || (cust && cust.email)),
+                email_status: "dispatched"
+            };
+            demoStore.sales.unshift(newSale);
+            return createJsonResponse(newSale);
+        }
+    }
+
+    // Sale invoice email
+    if (path.match(/\/sales\/\d+\/email/)) {
+        const body = JSON.parse(init.body || "{}");
+        const recipient = body.email || "customer@example.com";
+        return createJsonResponse({
+            success: true,
+            mode: "dispatched",
+            recipient: recipient,
+            invoice_number: "INV-DEMO-" + Math.floor(1000 + Math.random() * 9000),
+            subject: "Invoice from DemandSense Supermarket",
+            message: `Invoice dispatched to concern email ID: ${recipient}`
+        });
+    }
+
+    // Notifications
+    if (path === "/notifications") {
+        return createJsonResponse(demoStore.notifications);
+    }
+    if (path.match(/\/notifications\/\d+\/read/)) {
+        const id = parseInt(path.split("/")[2]);
+        const n = demoStore.notifications.find(x => x.id === id);
+        if (n) n.is_read = true;
+        return createJsonResponse({ message: "Marked as read" });
+    }
+
+    // Reseed
+    if (path === "/reports/seed") {
+        return createJsonResponse({ message: "Demo database restored to default!" });
+    }
+
+    // Default 200 OK fallback
+    return createJsonResponse({ message: "OK (Demo Mode)", path });
+}
+
 let currentToken = localStorage.getItem("demandsense_token") || "";
 let currentUser = null;
 let charts = {}; // holds Chart.js instances
@@ -133,6 +409,65 @@ function setupEventHandlers() {
         btn.addEventListener("click", handleMobileReportTabClick);
     });
     document.getElementById("m-forecast-product-select").addEventListener("change", renderMobileForecastGraphsAndTables);
+
+    // 10. Demo & API Config handlers for GitHub Pages
+    const quickDemoBtn = document.getElementById("quick-demo-login-btn");
+    if (quickDemoBtn) quickDemoBtn.addEventListener("click", enterDemoMode);
+    const configApiBtn = document.getElementById("config-api-btn");
+    if (configApiBtn) configApiBtn.addEventListener("click", configureApiUrl);
+    const phoneConfigApiBtn = document.getElementById("phone-config-api-btn");
+    if (phoneConfigApiBtn) phoneConfigApiBtn.addEventListener("click", configureApiUrl);
+}
+
+function enterDemoMode() {
+    isDemoMode = true;
+    currentToken = "demo_token_pages";
+    localStorage.setItem("demandsense_token", currentToken);
+    localStorage.setItem("demandsense_demo_mode", "true");
+    currentUser = demoStore.user;
+    updateUserProfileUI(currentUser);
+    showDashboard();
+    switchPhoneView("home");
+    reloadAllBIDashboards();
+}
+
+function configureApiUrl() {
+    const current = localStorage.getItem("demandsense_api_base") || API_BASE;
+    const input = prompt(
+        "Enter your live Backend API URL (or leave blank to use Demo Mode on GitHub Pages):\nExample: https://sales-data-dashboard.onrender.com/api",
+        current
+    );
+    if (input === null) return;
+    const cleaned = input.trim().replace(/\/+$/, "");
+    if (!cleaned) {
+        localStorage.removeItem("demandsense_api_base");
+        localStorage.setItem("demandsense_demo_mode", "true");
+        isDemoMode = true;
+        alert("Switched to Standalone Interactive Demo Mode.");
+    } else {
+        localStorage.setItem("demandsense_api_base", cleaned);
+        localStorage.removeItem("demandsense_demo_mode");
+        API_BASE = cleaned;
+        isDemoMode = false;
+        alert(`API URL set to: ${cleaned}\nThe app will now connect to this backend.`);
+    }
+    window.location.reload();
+}
+
+function updateUserProfileUI(user) {
+    if (!user) return;
+    const ownerEl = document.getElementById("phone-owner-name");
+    const bizNameEl = document.getElementById("phone-biz-name");
+    const bizCatEl = document.getElementById("phone-biz-cat");
+    const bizAddrEl = document.getElementById("phone-biz-addr");
+    if (ownerEl) ownerEl.innerText = user.full_name;
+    if (bizNameEl) bizNameEl.innerText = user.business ? user.business.name : "DemandSense Store";
+    if (bizCatEl) bizCatEl.innerText = user.business ? user.business.category : "Retail";
+    if (bizAddrEl) bizAddrEl.innerHTML = `<i data-lucide="map-pin"></i> ${user.business && user.business.address ? user.business.address : "Store Location"}`;
+    const initials = user.full_name ? user.full_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase() : "DS";
+    const av = document.getElementById("top-avatar");
+    if (av) av.innerText = initials;
+    if (window.lucide) lucide.createIcons();
 }
 
 // Token helper headers
@@ -188,15 +523,7 @@ async function verifyTokenAndLoad() {
         const res = await fetch(`${API_BASE}/auth/profile`, { headers: getHeaders() });
         if (res.ok) {
             currentUser = await res.json();
-            document.getElementById("phone-owner-name").innerText = currentUser.full_name;
-            document.getElementById("phone-biz-name").innerText = currentUser.business.name;
-            document.getElementById("phone-biz-cat").innerText = currentUser.business.category;
-            document.getElementById("phone-biz-addr").innerHTML = `<i data-lucide="map-pin"></i> ${currentUser.business.address || "Address not set"}`;
-            // Update top-bar avatar initials
-            const initials = currentUser.full_name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase();
-            const av = document.getElementById("top-avatar");
-            if (av) av.innerText = initials;
-            lucide.createIcons();
+            updateUserProfileUI(currentUser);
             showDashboard();
             const initHash = window.location.hash.replace("#", "");
             if (initHash && ["home", "products", "record-sale", "analytics", "alerts"].includes(initHash)) {
@@ -210,7 +537,11 @@ async function verifyTokenAndLoad() {
         }
     } catch (err) {
         console.error("Connection failed", err);
-        showLoginOverlay();
+        if (window.location.hostname.includes("github.io") || isDemoMode) {
+            enterDemoMode();
+        } else {
+            showLoginOverlay();
+        }
     }
 }
 
@@ -231,11 +562,12 @@ async function handleLogin(e) {
             localStorage.setItem("demandsense_token", currentToken);
             verifyTokenAndLoad();
         } else {
-            const err = await response.json();
-            alert(`Login Failed: ${err.detail}`);
+            const err = await response.json().catch(() => ({}));
+            alert(`Login Failed: ${err.detail || "Invalid credentials"}`);
         }
     } catch (err) {
-        alert("API connection failed. Make sure backend server is running on port 8000.");
+        console.warn("Backend API connection failed, launching demo mode fallback", err);
+        enterDemoMode();
     }
 }
 

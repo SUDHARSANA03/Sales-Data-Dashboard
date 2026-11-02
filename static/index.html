@@ -66,7 +66,15 @@
                             <input type="password" id="login-password" value="password123" required>
                         </div>
                         <button type="submit" class="flutter-btn primary full-width">Sign In</button>
-                        <p class="form-tip">Demo: owner@demandsense.com / password123</p>
+                        <p class="form-tip">Default Demo: owner@demandsense.com / password123</p>
+                        <div style="margin-top:14px; display:flex; gap:10px; justify-content:center;">
+                            <button type="button" id="quick-demo-login-btn" class="flutter-btn outline sm" style="font-size:12px; padding:8px 14px; border-radius:8px; border:1px solid rgba(56,189,248,0.3); background:rgba(56,189,248,0.08); color:#38bdf8; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                                <i data-lucide="sparkles" style="width:14px; height:14px;"></i> Launch Instant Demo
+                            </button>
+                            <button type="button" id="config-api-btn" class="flutter-btn text sm" style="font-size:12px; padding:8px 12px; color:#94a3b8; display:flex; align-items:center; gap:5px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:8px; cursor:pointer;">
+                                <i data-lucide="settings" style="width:13px; height:13px;"></i> Set API
+                            </button>
+                        </div>
                     </form>
                     <!-- Register Form -->
                     <form id="phone-register-form" class="auth-form">
@@ -132,6 +140,9 @@
                                 </button>
                                 <button class="quick-menu-item danger" id="phone-reseed-db-btn">
                                     <i data-lucide="refresh-cw"></i><span>Reset Sample Data</span>
+                                </button>
+                                <button class="quick-menu-item" id="phone-config-api-btn">
+                                    <i data-lucide="server"></i><span>Configure API URL</span>
                                 </button>
                                 <button class="quick-menu-item logout" id="phone-logout-btn">
                                     <i data-lucide="log-out"></i><span>Sign Out</span>
