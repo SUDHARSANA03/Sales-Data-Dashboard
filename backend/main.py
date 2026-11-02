@@ -5,15 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 # Import custom modules
-from backend.database import engine, Base
+from backend.database import engine, Base, ensure_schema_migrations
 from backend.models import Product
 from backend.db_seeder import seed_db
 
 # Import modular routers
 from backend.routers import auth, products, sales, analytics, notifications, reports
 
-# Database initialization
+# Database initialization & migrations
 Base.metadata.create_all(bind=engine)
+ensure_schema_migrations()
 
 app = FastAPI(
     title="DemandSense API",
@@ -43,11 +44,9 @@ static_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 if not os.path.exists(static_path):
     os.makedirs(static_path)
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
-
-if __name__ == "__main__":
-    import uvicorn
-    # Seed the DB initially if empty
+@app.on_event("startup")
+def startup_event():
+    """Auto-seed sample database on first startup if empty."""
     from backend.database import SessionLocal
     db = SessionLocal()
     try:
@@ -55,9 +54,14 @@ if __name__ == "__main__":
             print("No products found in DB, auto-seeding sample database...")
             seed_db(db)
     except Exception as ex:
-        print(f"Auto-seed failed: {str(ex)}")
+        print(f"Auto-seed check: {str(ex)}")
     finally:
         db.close()
-        
+
+app.mount("/", StaticFiles(directory=static_path, html=True), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
     # Start the server
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)

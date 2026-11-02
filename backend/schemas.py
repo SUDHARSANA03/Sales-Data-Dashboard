@@ -80,6 +80,7 @@ class ProductResponse(BaseModel):
 class CustomerCreate(BaseModel):
     name: str
     phone: Optional[str] = None
+    email: Optional[str] = None
     segment: Optional[str] = "Occasional"
 
 class CustomerResponse(BaseModel):
@@ -87,6 +88,7 @@ class CustomerResponse(BaseModel):
     business_id: int
     name: str
     phone: Optional[str] = None
+    email: Optional[str] = None
     segment: str
     created_at: datetime
 
@@ -97,10 +99,15 @@ class CustomerResponse(BaseModel):
 class SaleCreate(BaseModel):
     product_id: int
     customer_id: Optional[int] = None
+    customer_email: Optional[str] = None # Direct concern mail ID
+    send_email: Optional[bool] = True
     quantity: int = Field(..., gt=0)
     unit_price: Optional[float] = None # If null, will default to product's selling price
     payment_method: Optional[str] = "Cash"
     date: Optional[date] = None # defaults to today
+
+class EmailInvoiceRequest(BaseModel):
+    email: Optional[str] = None
 
 class SaleResponse(BaseModel):
     id: int
@@ -109,6 +116,11 @@ class SaleResponse(BaseModel):
     product_name: Optional[str] = None
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
+    customer_email: Optional[str] = None
+    invoice_number: Optional[str] = None
+    email_sent: Optional[bool] = False
+    email_status: Optional[str] = None
     quantity: int
     unit_price: float
     total_sales: float

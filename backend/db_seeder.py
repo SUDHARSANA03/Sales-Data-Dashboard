@@ -101,17 +101,17 @@ def seed_db(db: Session):
     
     # 4. Create Customers
     customers_to_seed = [
-        # name, phone, segment
-        ("Homer Simpson", "+1 (555) 742-0199", "Loyal"),
-        ("Marge Simpson", "+1 (555) 742-0198", "Loyal"),
-        ("Ned Flanders", "+1 (555) 742-1354", "Regular"),
-        ("Moe Szyslak", "+1 (555) 123-4567", "Occasional"),
-        ("Barney Gumble", "+1 (555) 765-4321", "Occasional"),
-        ("Apu Nahasapeemapetilon", "+1 (555) 999-8888", "Regular"),
-        ("Seymour Skinner", "+1 (555) 111-2222", "Regular"),
-        ("Milhouse Van Houten", "+1 (555) 333-4444", "New"),
-        ("Clancy Wiggum", "+1 (555) 555-5555", "Occasional"),
-        ("Charles Burns", "+1 (555) 000-0001", "New")
+        # name, phone, email, segment
+        ("Homer Simpson", "+1 (555) 742-0199", "homer.simpson@springfield.org", "Loyal"),
+        ("Marge Simpson", "+1 (555) 742-0198", "marge.simpson@springfield.org", "Loyal"),
+        ("Ned Flanders", "+1 (555) 742-1354", "ned.flanders@leftorium.com", "Regular"),
+        ("Moe Szyslak", "+1 (555) 123-4567", "moe@tavernspringfield.com", "Occasional"),
+        ("Barney Gumble", "+1 (555) 765-4321", "barney.gumble@springfield.org", "Occasional"),
+        ("Apu Nahasapeemapetilon", "+1 (555) 999-8888", "apu@quick-e-mart.com", "Regular"),
+        ("Seymour Skinner", "+1 (555) 111-2222", "principal.skinner@springfield.edu", "Regular"),
+        ("Milhouse Van Houten", "+1 (555) 333-4444", "milhouse@springfield.edu", "New"),
+        ("Clancy Wiggum", "+1 (555) 555-5555", "chief.wiggum@springfieldpd.gov", "Occasional"),
+        ("Charles Burns", "+1 (555) 000-0001", "c.burns@springfieldnuclear.com", "New")
     ]
     
     db_customers = []
@@ -120,7 +120,8 @@ def seed_db(db: Session):
             business_id=business.id,
             name=c[0],
             phone=c[1],
-            segment=c[2]
+            email=c[2],
+            segment=c[3]
         )
         db.add(customer)
         db_customers.append(customer)
@@ -207,6 +208,7 @@ def seed_db(db: Session):
                         business_id=business.id,
                         product_id=p_obj.id,
                         customer_id=cust.id if cust else None,
+                        customer_email=cust.email if cust else None,
                         quantity=q,
                         unit_price=p_obj.selling_price,
                         total_sales=total_sales,
@@ -224,6 +226,7 @@ def seed_db(db: Session):
                             business_id=business.id,
                             product_id=oil_obj.id,
                             customer_id=cust.id if cust else None,
+                            customer_email=cust.email if cust else None,
                             quantity=oil_qty,
                             unit_price=oil_obj.selling_price,
                             total_sales=oil_total,

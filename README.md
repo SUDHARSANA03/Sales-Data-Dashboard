@@ -72,4 +72,27 @@ Sales-Data-Dashboard/
 
 ---
 
+---
+## 🌐 Deployment Guide
 
+### Option 1: Render / Railway (PaaS)
+1. Push to your GitHub repository: https://github.com/SUDHARSANA03/Sales-Data-Dashboard
+2. Connect your repository on [Render](https://render.com) or [Railway](https://railway.app).
+3. Set Build Command:
+   \\ash
+   pip install -r requirements.txt
+   \4. Set Start Command:
+   \\ash
+   uvicorn backend.main:app --host 0.0.0.0 --port    \   *(Or allow auto-detection via the included \Procfile\)*
+5. Optional Environment Variables:
+   - \SMTP_HOST\: (e.g., \smtp.gmail.com\ for automated invoice dispatch)
+   - \SMTP_PORT\: 87   - \SMTP_USER\: \your-email@gmail.com   - \SMTP_PASSWORD\: \your-app-password   - \DATABASE_URL\: (Optional PostgreSQL connection URL; defaults to SQLite if omitted)
+
+### Option 2: Docker
+\\ash
+# Build the Docker image
+docker build -t sales-data-dashboard .
+
+# Run container
+docker run -p 8000:8000 sales-data-dashboard
+\Visit \http://localhost:8000\ in your browser.

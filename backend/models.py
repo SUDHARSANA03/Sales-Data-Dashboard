@@ -61,6 +61,7 @@ class Customer(Base):
     business_id = Column(Integer, ForeignKey("business_profiles.id"), nullable=False)
     name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
     segment = Column(String, default="Occasional") # Loyal, Regular, Occasional, New
     created_at = Column(DateTime, default=datetime.utcnow)
     
@@ -75,6 +76,8 @@ class Sale(Base):
     business_id = Column(Integer, ForeignKey("business_profiles.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+    customer_email = Column(String, nullable=True)
+    invoice_number = Column(String, nullable=True)
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
     total_sales = Column(Float, nullable=False)

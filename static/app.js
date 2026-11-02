@@ -4,6 +4,8 @@ const API_BASE = "http://127.0.0.1:8000/api";
 let currentToken = localStorage.getItem("demandsense_token") || "";
 let currentUser = null;
 let charts = {}; // holds Chart.js instances
+let cachedCustomers = [];
+let currentInvoiceSale = null;
 
 // Run on page load
 document.addEventListener("DOMContentLoaded", () => {
@@ -16,6 +18,20 @@ document.addEventListener("DOMContentLoaded", () => {
 // Initialize application state
 function initApp() {
     lucide.createIcons();
+    if (window.Chart) {
+        Chart.defaults.color = "#94a3b8";
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.borderColor = "rgba(255, 255, 255, 0.06)";
+        if (Chart.defaults.plugins && Chart.defaults.plugins.tooltip) {
+            Chart.defaults.plugins.tooltip.backgroundColor = "rgba(13, 20, 36, 0.95)";
+            Chart.defaults.plugins.tooltip.borderColor = "rgba(255, 255, 255, 0.12)";
+            Chart.defaults.plugins.tooltip.borderWidth = 1;
+            Chart.defaults.plugins.tooltip.padding = 10;
+            Chart.defaults.plugins.tooltip.cornerRadius = 8;
+            Chart.defaults.plugins.tooltip.titleFont = { family: "'Outfit', sans-serif", weight: '600' };
+            Chart.defaults.plugins.tooltip.bodyFont = { family: "'Inter', sans-serif" };
+        }
+    }
     if (currentToken) {
         verifyTokenAndLoad();
     } else {
@@ -49,13 +65,22 @@ function setupEventHandlers() {
     
     // 3. Logout
     document.getElementById("phone-logout-btn").addEventListener("click", handleLogout);
+    document.getElementById("mobile-logout-btn").addEventListener("click", handleLogout);
     
     // 4. Phone Navigation clicks
     document.querySelectorAll(".phone-nav-item").forEach(item => {
         item.addEventListener("click", function() {
-            document.querySelectorAll(".phone-nav-item").forEach(i => i.classList.remove("active"));
-            this.classList.add("active");
+            const view = this.getAttribute("data-view");
+            if (view) switchPhoneView(view);
         });
+    });
+
+    // Hash change routing for bookmarking and subagent navigation
+    window.addEventListener("hashchange", () => {
+        const route = window.location.hash.replace("#", "");
+        if (route && ["home", "products", "record-sale", "analytics", "alerts"].includes(route)) {
+            switchPhoneView(route);
+        }
     });
 
     // 5. DB Reseed Demo data
@@ -70,16 +95,43 @@ function setupEventHandlers() {
     document.getElementById("product-crud-form").addEventListener("submit", handleProductSave);
     document.getElementById("phone-product-search").addEventListener("input", filterMobileProducts);
     
-    // 8. Recording Sales Form Stepper
+    // 8. Recording Sales Form Stepper & Customer
     document.getElementById("sale-qty-minus").addEventListener("click", () => adjustSaleQty(-1));
     document.getElementById("sale-qty-plus").addEventListener("click", () => adjustSaleQty(1));
     document.getElementById("sale-product-select").addEventListener("change", handleSaleProductChange);
+    document.getElementById("sale-customer-select").addEventListener("change", handleSaleCustomerChange);
     document.getElementById("sale-quantity").addEventListener("input", updateSaleInvoiceTotal);
     document.getElementById("sale-price-override").addEventListener("input", updateSaleInvoiceTotal);
     document.getElementById("record-sale-form").addEventListener("submit", handleRecordSale);
 
-    // 9. Mobile Analytics Report Select
-    document.getElementById("mobile-report-select").addEventListener("change", handleMobileReportSelectChange);
+    // 8b. Invoice Dialog Modal Handlers
+    const modalCloseBtn = document.getElementById("invoice-modal-close-btn");
+    if (modalCloseBtn) modalCloseBtn.addEventListener("click", closeInvoiceModal);
+    const modalDoneBtn = document.getElementById("inv-modal-done-btn");
+    if (modalDoneBtn) modalDoneBtn.addEventListener("click", closeInvoiceModal);
+    const modalResendBtn = document.getElementById("inv-modal-resend-btn");
+    if (modalResendBtn) modalResendBtn.addEventListener("click", handleResendInvoiceEmail);
+    const modalPdfBtn = document.getElementById("inv-modal-pdf-btn");
+    if (modalPdfBtn) modalPdfBtn.addEventListener("click", () => {
+        if (currentInvoiceSale) downloadSaleInvoicePdf(currentInvoiceSale.id, currentInvoiceSale.invoice_number);
+    });
+    const modalMailtoBtn = document.getElementById("inv-modal-mailto-btn");
+    if (modalMailtoBtn) modalMailtoBtn.addEventListener("click", () => {
+        if (currentInvoiceSale) openSaleInvoiceMailto(currentInvoiceSale);
+    });
+    const modalWaBtn = document.getElementById("inv-modal-wa-btn");
+    if (modalWaBtn) modalWaBtn.addEventListener("click", () => {
+        if (currentInvoiceSale) openSaleInvoiceWhatsApp(currentInvoiceSale);
+    });
+    const modalHtmlBtn = document.getElementById("inv-modal-html-btn");
+    if (modalHtmlBtn) modalHtmlBtn.addEventListener("click", () => {
+        if (currentInvoiceSale) openSaleInvoiceHtml(currentInvoiceSale.id);
+    });
+
+    // 9. Mobile Analytics Report Tabs
+    document.querySelectorAll(".bi-tab-btn").forEach(btn => {
+        btn.addEventListener("click", handleMobileReportTabClick);
+    });
     document.getElementById("m-forecast-product-select").addEventListener("change", renderMobileForecastGraphsAndTables);
 }
 
@@ -146,7 +198,12 @@ async function verifyTokenAndLoad() {
             if (av) av.innerText = initials;
             lucide.createIcons();
             showDashboard();
-            switchPhoneView("home");
+            const initHash = window.location.hash.replace("#", "");
+            if (initHash && ["home", "products", "record-sale", "analytics", "alerts"].includes(initHash)) {
+                switchPhoneView(initHash);
+            } else {
+                switchPhoneView("home");
+            }
             reloadAllBIDashboards();
         } else {
             handleLogout();
@@ -264,7 +321,7 @@ async function triggerReseed() {
 // Report downloader trigger
 function downloadReport(format) {
     if (!currentToken) {
-        alert("Please register or log in on the phone emulator to download records.");
+        alert("Please register or log in to download records.");
         return;
     }
     const endpoint = format === "excel" ? "excel" : "pdf";
@@ -359,6 +416,8 @@ async function fetchMobileSummary() {
                 }
             });
         }
+        // Load recent invoices list on home view
+        await loadRecentInvoices();
     } catch (err) {
         console.error(err);
     }
@@ -521,8 +580,9 @@ async function loadMobileSaleForm() {
         
         if (custRes.ok) {
             const custs = await custRes.json();
-            custSelect.innerHTML = `<option value="">Walk-in Customer (None)</option>` + 
-                custs.map(c => `<option value="${c.id}">${c.name} (${c.segment})</option>`).join('');
+            cachedCustomers = custs;
+            custSelect.innerHTML = `<option value="">Walk-in Customer (Manual Email)</option>` + 
+                custs.map(c => `<option value="${c.id}">${c.name} (${c.segment})${c.email ? ' • ' + c.email : ''}</option>`).join('');
         }
         
         document.getElementById("sale-quantity").value = 1;
@@ -530,8 +590,41 @@ async function loadMobileSaleForm() {
         document.getElementById("sale-total-val").innerText = "₹0.00";
         document.getElementById("sale-stock-hint").innerText = "Available: --";
         
+        const emailInput = document.getElementById("sale-customer-email");
+        if (emailInput) {
+            emailInput.value = "";
+            emailInput.placeholder = "e.g. customer@example.com (Concern Mail ID)";
+        }
+        const emailCheckbox = document.getElementById("sale-send-email-checkbox");
+        if (emailCheckbox) emailCheckbox.checked = true;
+        
     } catch (e) {
         console.error("Form load failed", e);
+    }
+}
+
+function handleSaleCustomerChange() {
+    const select = document.getElementById("sale-customer-select");
+    const custId = select.value;
+    const emailInput = document.getElementById("sale-customer-email");
+    const sendEmailCheckbox = document.getElementById("sale-send-email-checkbox");
+    
+    if (!emailInput) return;
+    
+    if (!custId) {
+        // Walk-in customer
+        emailInput.value = "";
+        emailInput.placeholder = "customer@example.com (Concern Mail ID)";
+        return;
+    }
+    
+    const cust = cachedCustomers.find(c => c.id == custId);
+    if (cust && cust.email) {
+        emailInput.value = cust.email;
+        if (sendEmailCheckbox) sendEmailCheckbox.checked = true;
+    } else {
+        emailInput.value = "";
+        emailInput.placeholder = `Enter email for ${cust ? cust.name : 'customer'}...`;
     }
 }
 
@@ -584,6 +677,10 @@ async function handleRecordSale(e) {
     const qty = parseInt(document.getElementById("sale-quantity").value);
     const price = parseFloat(document.getElementById("sale-price-override").value) || null;
     const cId = document.getElementById("sale-customer-select").value || null;
+    const emailInput = document.getElementById("sale-customer-email");
+    const customerEmail = emailInput ? emailInput.value.trim() : "";
+    const emailCheckbox = document.getElementById("sale-send-email-checkbox");
+    const sendEmail = emailCheckbox ? emailCheckbox.checked : true;
     const payMode = document.getElementById("sale-payment-method").value;
     
     if (!pId) {
@@ -591,11 +688,19 @@ async function handleRecordSale(e) {
         return;
     }
     
+    const submitBtn = e.target.querySelector("button[type='submit']");
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Recording Sale & Generating Invoice...";
+    }
+    
     const payload = {
         product_id: parseInt(pId),
         quantity: qty,
         unit_price: price,
         customer_id: cId ? parseInt(cId) : null,
+        customer_email: customerEmail || null,
+        send_email: sendEmail,
         payment_method: payMode
     };
     
@@ -607,15 +712,228 @@ async function handleRecordSale(e) {
         });
         
         if (res.ok) {
-            alert("Sale recorded successfully!");
-            switchPhoneView("home");
+            const saleData = await res.json();
+            
+            // Present rich invoice modal showing receipt delivery to concern mail id
+            showInvoiceModal(saleData);
+            
+            // Refresh dashboard data & recent invoices
+            fetchMobileSummary();
             reloadAllBIDashboards();
         } else {
             const err = await res.json();
-            alert(`Failed: ${err.detail}`);
+            alert(`Transaction failed: ${err.detail || "Unknown error"}`);
         }
     } catch (e) {
-        alert("API request failed.");
+        console.error("Sale recording failed", e);
+        alert("API request failed. Please check network connection.");
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Complete Transaction";
+        }
+    }
+}
+
+// Invoice Dialog & Delivery Functions
+function showInvoiceModal(saleData) {
+    currentInvoiceSale = saleData;
+    const overlay = document.getElementById("invoice-modal-overlay");
+    if (!overlay) return;
+    
+    const invNum = saleData.invoice_number || `INV-${saleData.id}`;
+    document.getElementById("inv-modal-subtitle").innerText = `Invoice #${invNum}`;
+    
+    const emailTag = document.getElementById("inv-modal-email-tag");
+    const emailTarget = document.getElementById("inv-modal-email-target");
+    const emailDesc = document.getElementById("inv-modal-email-desc");
+    const resendInput = document.getElementById("inv-modal-resend-input");
+    
+    const targetEmail = saleData.customer_email;
+    if (targetEmail) {
+        emailTag.innerText = saleData.email_sent ? "Invoice Delivered ✓" : "Concern Mail Configured";
+        emailTag.style.color = "#34d399";
+        emailTarget.innerText = targetEmail;
+        emailDesc.innerText = saleData.email_status || `Invoice sent to concern mail ID ${targetEmail} with PDF attachment.`;
+        if (resendInput) resendInput.value = targetEmail;
+    } else {
+        emailTag.innerText = "No Email Provided";
+        emailTag.style.color = "#f59e0b";
+        emailTarget.innerText = "Enter mail ID to deliver invoice";
+        emailDesc.innerText = "You can enter the concern mail ID below and click Send.";
+        if (resendInput) resendInput.value = "";
+    }
+    
+    document.getElementById("inv-modal-cust-name").innerText = saleData.customer_name || "Walk-in Customer";
+    document.getElementById("inv-modal-item-name").innerText = `${saleData.product_name} (x${saleData.quantity})`;
+    document.getElementById("inv-modal-pay-mode").innerText = saleData.payment_method;
+    document.getElementById("inv-modal-total").innerText = `₹${saleData.total_sales.toFixed(2)}`;
+    
+    overlay.classList.remove("hidden");
+    lucide.createIcons();
+}
+
+function closeInvoiceModal() {
+    const overlay = document.getElementById("invoice-modal-overlay");
+    if (overlay) overlay.classList.add("hidden");
+    switchPhoneView("home");
+}
+
+async function handleResendInvoiceEmail() {
+    if (!currentInvoiceSale) return;
+    const input = document.getElementById("inv-modal-resend-input");
+    const email = input ? input.value.trim() : "";
+    if (!email || !email.includes("@")) {
+        alert("Please enter a valid concern email address.");
+        return;
+    }
+    
+    const btn = document.getElementById("inv-modal-resend-btn");
+    btn.disabled = true;
+    btn.innerText = "Sending...";
+    
+    try {
+        const res = await fetch(`${API_BASE}/sales/${currentInvoiceSale.id}/email`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ email: email })
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            currentInvoiceSale.customer_email = email;
+            currentInvoiceSale.email_sent = true;
+            
+            const emailTag = document.getElementById("inv-modal-email-tag");
+            emailTag.innerText = "Invoice Delivered ✓";
+            emailTag.style.color = "#34d399";
+            document.getElementById("inv-modal-email-target").innerText = email;
+            document.getElementById("inv-modal-email-desc").innerText = `Invoice successfully sent to ${email} with attached PDF.`;
+            alert(`Invoice successfully sent to concern mail ID: ${email}!`);
+            loadRecentInvoices();
+        } else {
+            const err = await res.json();
+            alert(`Failed to send email: ${err.detail || "Server error"}`);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Network request failed while sending invoice email.");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="mail"></i> Send`;
+        lucide.createIcons();
+    }
+}
+
+function downloadSaleInvoicePdf(saleId, invoiceNum) {
+    const token = currentToken;
+    const url = `${API_BASE}/sales/${saleId}/invoice-pdf`;
+    fetch(url, { headers: { "Authorization": `Bearer ${token}` } })
+        .then(resp => {
+            if (!resp.ok) throw new Error("Could not download invoice PDF");
+            return resp.blob();
+        })
+        .then(blob => {
+            const link = document.createElement("a");
+            link.href = window.URL.createObjectURL(blob);
+            link.download = `${invoiceNum || 'Invoice'}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        })
+        .catch(err => alert(err.message));
+}
+
+function openSaleInvoiceMailto(saleData) {
+    const bizName = document.getElementById("phone-biz-name") ? document.getElementById("phone-biz-name").innerText : "DemandSense Store";
+    const email = saleData.customer_email || "";
+    const invNum = saleData.invoice_number || `INV-${saleData.id}`;
+    const subject = `Invoice #${invNum} from ${bizName}`;
+    const body = `Dear ${saleData.customer_name || 'Customer'},\n\nThank you for shopping at ${bizName}.\n\n--- TRANSACTION INVOICE ---\nInvoice: #${invNum}\nDate: ${saleData.date}\nProduct: ${saleData.product_name}\nQuantity: ${saleData.quantity}\nUnit Price: ₹${saleData.unit_price.toFixed(2)}\nTotal Amount Paid: ₹${saleData.total_sales.toFixed(2)}\nPayment Method: ${saleData.payment_method}\nStatus: PAID IN FULL\n\nThank you for your business!\n\nBest regards,\n${bizName}`;
+    
+    window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+function openSaleInvoiceWhatsApp(saleData) {
+    const bizName = document.getElementById("phone-biz-name") ? document.getElementById("phone-biz-name").innerText : "DemandSense Store";
+    const invNum = saleData.invoice_number || `INV-${saleData.id}`;
+    const phone = saleData.customer_phone ? saleData.customer_phone.replace(/\D/g, '') : '';
+    const text = `*Invoice #${invNum} from ${bizName}*\n\nHi ${saleData.customer_name || 'Customer'},\nHere is your purchase bill:\n\n*Product*: ${saleData.product_name}\n*Quantity*: ${saleData.quantity}\n*Price*: ₹${saleData.unit_price.toFixed(2)}\n*Total*: ₹${saleData.total_sales.toFixed(2)}\n*Payment Method*: ${saleData.payment_method}\n*Date*: ${saleData.date}\n\nThank you for shopping with us!`;
+    const url = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+}
+
+function openSaleInvoiceHtml(saleId) {
+    window.open(`${API_BASE}/sales/${saleId}/invoice-html`, '_blank');
+}
+
+async function loadRecentInvoices() {
+    const list = document.getElementById("phone-recent-invoices-list");
+    if (!list) return;
+    try {
+        const res = await fetch(`${API_BASE}/sales`, { headers: getHeaders() });
+        if (res.ok) {
+            const sales = await res.json();
+            const recent = sales.slice(0, 6);
+            if (recent.length === 0) {
+                list.innerHTML = `<p style="font-size:12px; color:var(--text-sec); text-align:center; padding:10px;">No sales recorded yet.</p>`;
+                return;
+            }
+            list.innerHTML = recent.map(s => {
+                const hasEmail = s.customer_email;
+                const invRef = s.invoice_number || `#INV-${s.id}`;
+                return `
+                    <div class="recent-invoice-card">
+                        <div class="recent-inv-left">
+                            <div class="recent-inv-icon">
+                                <i data-lucide="receipt"></i>
+                            </div>
+                            <div class="recent-inv-meta">
+                                <div class="recent-inv-title">${s.product_name} <span style="font-size:11px; color:var(--text-sec); font-weight:normal;">x${s.quantity}</span></div>
+                                <div class="recent-inv-sub">
+                                    <span>${s.customer_name || 'Walk-in'}</span>
+                                    ${hasEmail ? `<span class="email-tag-chip" title="${s.customer_email}">✉ ${s.customer_email}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="recent-inv-right">
+                            <div class="recent-inv-amount">₹${s.total_sales.toFixed(2)}</div>
+                            <button type="button" class="recent-inv-action-btn" onclick="promptEmailSale(${s.id}, '${s.customer_email || ''}')">
+                                <i data-lucide="mail"></i> ${hasEmail ? 'Resend' : 'Send'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+    } catch (err) {
+        console.error("Failed to load recent invoices", err);
+    }
+}
+
+async function promptEmailSale(saleId, currentEmail) {
+    const targetEmail = prompt("Enter concern mail ID to send this invoice to:", currentEmail || "");
+    if (!targetEmail) return;
+    if (!targetEmail.includes("@")) {
+        alert("Please enter a valid email address.");
+        return;
+    }
+    try {
+        const res = await fetch(`${API_BASE}/sales/${saleId}/email`, {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ email: targetEmail.trim() })
+        });
+        if (res.ok) {
+            alert(`Invoice successfully sent to concern mail ID: ${targetEmail.trim()}!`);
+            loadRecentInvoices();
+        } else {
+            const err = await res.json();
+            alert(`Failed to send invoice: ${err.detail || "Server error"}`);
+        }
+    } catch (e) {
+        alert("Network request failed while sending email.");
     }
 }
 
@@ -806,7 +1124,8 @@ async function markAlertAsRead(id) {
 function reloadAllBIDashboards() {
     const analyticsView = document.getElementById("phone-view-analytics");
     if (analyticsView && analyticsView.classList.contains("active")) {
-        const reportVal = document.getElementById("mobile-report-select").value;
+        const activeTab = document.querySelector(".bi-tab-btn.active");
+        const reportVal = activeTab ? activeTab.getAttribute("data-tab") : "executive";
         loadMobileAnalyticsReport(reportVal);
     }
     
@@ -836,7 +1155,8 @@ function destroyChart(name) {
 
 // Entry point for loading/refreshing mobile analytics view
 async function loadMobileAnalytics() {
-    const val = document.getElementById("mobile-report-select").value;
+    const activeTab = document.querySelector(".bi-tab-btn.active");
+    const val = activeTab ? activeTab.getAttribute("data-tab") : "executive";
     
     // Hide all report sections
     document.querySelectorAll(".mobile-report-section").forEach(sec => sec.classList.remove("active"));
@@ -850,9 +1170,11 @@ async function loadMobileAnalytics() {
     await loadMobileAnalyticsReport(val);
 }
 
-// Handler for mobile report selector dropdown change
-async function handleMobileReportSelectChange() {
-    const val = document.getElementById("mobile-report-select").value;
+// Handler for mobile report tab click
+async function handleMobileReportTabClick(e) {
+    document.querySelectorAll(".bi-tab-btn").forEach(btn => btn.classList.remove("active"));
+    e.target.classList.add("active");
+    const val = e.target.getAttribute("data-tab");
     
     // Hide all report sections
     document.querySelectorAll(".mobile-report-section").forEach(sec => sec.classList.remove("active"));
