@@ -30,14 +30,14 @@ const demoStore = {
         }
     },
     products: [
-        { id: 1, name: "Premium Basmati Rice (5kg)", category: "Grains & Rice", cost_price: 280, selling_price: 360, current_stock: 42, min_reorder_qty: 15 },
-        { id: 2, name: "Cold-Pressed Sunflower Oil (1L)", category: "Oils", cost_price: 130, selling_price: 185, current_stock: 28, min_reorder_qty: 10 },
-        { id: 3, name: "Organic Whole Wheat Flour (10kg)", category: "Flour & Bakery", cost_price: 320, selling_price: 410, current_stock: 19, min_reorder_qty: 12 },
-        { id: 4, name: "Farm Fresh Honey (500g)", category: "Spreads & Sweeteners", cost_price: 175, selling_price: 245, current_stock: 8, min_reorder_qty: 10 },
-        { id: 5, name: "Artisan Dark Roast Coffee (250g)", category: "Beverages", cost_price: 240, selling_price: 350, current_stock: 34, min_reorder_qty: 10 },
-        { id: 6, name: "Swiss Dairy Chocolate (100g)", category: "Snacks & Confectionery", cost_price: 85, selling_price: 120, current_stock: 55, min_reorder_qty: 20 },
-        { id: 7, name: "Crunchy Almond Butter (350g)", category: "Spreads & Sweeteners", cost_price: 310, selling_price: 420, current_stock: 6, min_reorder_qty: 8 },
-        { id: 8, name: "Natural Greek Yogurt (400g)", category: "Dairy & Chilled", cost_price: 70, selling_price: 98, current_stock: 14, min_reorder_qty: 10 }
+        { id: 1, name: "Premium Basmati Rice (5kg)", category: "Grains & Rice", purchase_price: 280, selling_price: 360, current_stock: 42, min_reorder_qty: 15 },
+        { id: 2, name: "Cold-Pressed Sunflower Oil (1L)", category: "Oils", purchase_price: 130, selling_price: 185, current_stock: 28, min_reorder_qty: 10 },
+        { id: 3, name: "Organic Whole Wheat Flour (10kg)", category: "Flour & Bakery", purchase_price: 320, selling_price: 410, current_stock: 19, min_reorder_qty: 12 },
+        { id: 4, name: "Farm Fresh Honey (500g)", category: "Spreads & Sweeteners", purchase_price: 175, selling_price: 245, current_stock: 8, min_reorder_qty: 10 },
+        { id: 5, name: "Artisan Dark Roast Coffee (250g)", category: "Beverages", purchase_price: 240, selling_price: 350, current_stock: 34, min_reorder_qty: 10 },
+        { id: 6, name: "Swiss Dairy Chocolate (100g)", category: "Snacks & Confectionery", purchase_price: 85, selling_price: 120, current_stock: 55, min_reorder_qty: 20 },
+        { id: 7, name: "Crunchy Almond Butter (350g)", category: "Spreads & Sweeteners", purchase_price: 310, selling_price: 420, current_stock: 6, min_reorder_qty: 8 },
+        { id: 8, name: "Natural Greek Yogurt (400g)", category: "Dairy & Chilled", purchase_price: 70, selling_price: 98, current_stock: 14, min_reorder_qty: 10 }
     ],
     customers: [
         { id: 1, name: "Homer Simpson", phone: "+1 (555) 742-0199", email: "homer.simpson@springfield.org", segment: "Loyal" },
@@ -108,30 +108,54 @@ function mockApiResponse(urlStr, init = {}) {
     if (path === "/analytics/summary") {
         return createJsonResponse({
             total_revenue: 148290.00,
-            revenue_growth: 18.2,
             total_profit: 41850.00,
-            profit_growth: 14.5,
-            total_sales_count: 384,
-            units_growth: 9.2,
-            avg_margin: 28.4,
-            top_selling_product: "Premium Basmati Rice (5kg)",
-            active_customers: 24,
-            inventory_health_score: 94
+            total_sales: 384,
+            inventory_value: 52400.00,
+            business_health_score: 87.5
         });
     }
     if (path === "/analytics/sales") {
-        const trend = [];
+        const daily_sales = [];
         for (let i = 13; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            trend.push({
+            daily_sales.push({
                 date: d.toISOString().split("T")[0],
-                total_sales: Math.floor(4200 + Math.sin(i) * 1100 + (14 - i) * 150),
-                profit: Math.floor(1200 + Math.sin(i) * 350 + (14 - i) * 45),
+                sales: Math.floor(4200 + Math.sin(i) * 1100 + (14 - i) * 150),
                 quantity: Math.floor(16 + Math.sin(i) * 5 + (14 - i))
             });
         }
-        return createJsonResponse(trend);
+        // Build weekly aggregates (group by week)
+        const weekMap = {};
+        daily_sales.forEach(d => {
+            const dt = new Date(d.date);
+            const day = dt.getDay();
+            const diff = dt.getDate() - day + (day === 0 ? -6 : 1);
+            const mon = new Date(dt.setDate(diff));
+            const key = mon.toISOString().split('T')[0];
+            if (!weekMap[key]) weekMap[key] = { week: key, sales: 0, quantity: 0 };
+            weekMap[key].sales += d.sales;
+            weekMap[key].quantity += d.quantity;
+        });
+        const weekly_sales = Object.values(weekMap);
+        // Build monthly aggregates
+        const monthMap = {};
+        daily_sales.forEach(d => {
+            const dt = new Date(d.date);
+            const key = dt.toLocaleString('default', { month: 'short', year: 'numeric' });
+            if (!monthMap[key]) monthMap[key] = { month: key, sales: 0, quantity: 0 };
+            monthMap[key].sales += d.sales;
+            monthMap[key].quantity += d.quantity;
+        });
+        const monthly_sales = Object.values(monthMap);
+        const total_revenue = daily_sales.reduce((sum, d) => sum + d.sales, 0);
+        return createJsonResponse({
+            total_revenue: Math.round(total_revenue),
+            revenue_growth_pct: 18.2,
+            daily_sales,
+            weekly_sales,
+            monthly_sales
+        });
     }
     if (path === "/analytics/products") {
         return createJsonResponse(demoStore.products.map(p => ({

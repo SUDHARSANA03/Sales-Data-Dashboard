@@ -1,0 +1,6 @@
+# MERN Project Gitignore
+node_modules/
+.env
+data/
+dist/
+.DS_Store

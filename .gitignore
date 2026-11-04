@@ -23,5 +23,10 @@ output/
 # VS Code
 .vscode/
 
+# Node & MERN
+node_modules/
+mern/data/
+mern/client/dist/
+
 # Misc
 *.log

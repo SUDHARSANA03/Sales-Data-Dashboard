@@ -57,22 +57,22 @@ def seed_db(db: Session):
     
     # 3. Create Products
     products_to_seed = [
-        # name, category, purchase_price, selling_price, current_stock, min_reorder, supplier_name, supplier_contact
-        ("Fresh Milk 1L", "Dairy", 1.80, 2.99, 12, 25, "Valley Valley Dairy", "valley@dairy.com"),
-        ("Whole Wheat Bread 500g", "Bakery", 1.10, 2.49, 8, 15, "Golden Bakery Co.", "orders@goldenbakery.com"),
-        ("Organic Eggs (Dozen)", "Dairy", 2.20, 4.49, 28, 20, "Valley Valley Dairy", "valley@dairy.com"),
-        ("Greek Yogurt 500g", "Dairy", 1.50, 3.29, 32, 20, "Valley Valley Dairy", "valley@dairy.com"),
-        ("Fresh Gala Apples (1kg Bag)", "Produce", 1.80, 3.99, 6, 15, "Sunny Orchard Growers", "sales@sunnyorchard.com"),
-        ("Bananas (1kg Bundle)", "Produce", 0.90, 1.99, 15, 12, "Sunny Orchard Growers", "sales@sunnyorchard.com"),
-        ("Jasmine Rice 5kg", "Pantry", 6.50, 11.99, 4, 8, "Global Grain Imports", "grain@imports.com"),
-        ("Olive Oil Extra Virgin 1L", "Pantry", 8.00, 14.99, 10, 8, "Global Grain Imports", "grain@imports.com"),
-        ("Spaghetti Pasta 500g", "Pantry", 0.70, 1.79, 45, 30, "Global Grain Imports", "grain@imports.com"),
-        ("Canned Chunk Tuna 150g", "Pantry", 0.90, 2.19, 65, 25, "Atlantic Fisheries", "wholesale@atlanticfish.com"),
-        ("Tomato Ketchup 500ml", "Pantry", 1.20, 2.89, 3, 10, "Sunny Orchard Growers", "sales@sunnyorchard.com"),
-        ("Toilet Paper 9-Roll Pack", "Household", 4.00, 8.49, 5, 12, "SoftTissue Corp.", "wholesale@softtissue.com"),
-        ("Sparkle Dish Soap 500ml", "Household", 1.40, 3.19, 19, 10, "EcoClean Inc.", "contact@ecoclean.com"),
-        ("Ground Coffee Blend 250g", "Beverages", 3.20, 6.99, 2, 12, "Roasters Reserve Coffee", "roasters@reserve.com"),
-        ("Frozen Pepperoni Pizza 400g", "Frozen", 2.50, 5.49, 18, 15, "Bellissimo Foods", "bellissimo@pizza.com")
+        # name, category, purchase_price(₹), selling_price(₹), current_stock, min_reorder, supplier_name, supplier_contact
+        ("Premium Basmati Rice 5kg",    "Grains & Rice",          280,  360, 120, 30, "AgriGold Suppliers",      "agrigold@supplies.com"),
+        ("Whole Wheat Bread 400g",      "Bakery",                  45,   75,  40, 20, "Golden Bakery Co.",       "orders@goldenbakery.com"),
+        ("Organic Eggs (Dozen)",        "Dairy & Eggs",            90,  140,  60, 25, "Valley Fresh Dairy",      "valley@dairy.com"),
+        ("Greek Yogurt 400g",           "Dairy & Eggs",            70,  110,  35, 15, "Valley Fresh Dairy",      "valley@dairy.com"),
+        ("Fresh Gala Apples 1kg",       "Fresh Produce",           80,  130,  25, 15, "Sunny Orchard Growers",   "sales@sunnyorchard.com"),
+        ("Bananas 1kg Bundle",          "Fresh Produce",           35,   60,  40, 20, "Sunny Orchard Growers",   "sales@sunnyorchard.com"),
+        ("Cold-Pressed Sunflower Oil 1L","Oils & Ghee",           130,  185,  30, 12, "NaturaPress Oils",        "oils@naturapress.com"),
+        ("Olive Oil Extra Virgin 500ml","Oils & Ghee",            290,  420,  18, 10, "MediterrOils Import",     "info@mediterroils.com"),
+        ("Spaghetti Pasta 500g",        "Pantry Staples",          35,   65,  55, 30, "PastaWorld Imports",      "pw@pastaimports.com"),
+        ("Canned Tomatoes 400g",        "Pantry Staples",          40,   75,  70, 25, "Pacific Canneries",       "wholesale@pacific.com"),
+        ("Tomato Ketchup 500ml",        "Condiments",              60,   99,  28, 15, "Condiment Co.",           "sales@condimentco.com"),
+        ("Toilet Paper 6-Roll Pack",    "Household",              110,  175,  22, 12, "SoftTissue Corp.",        "wholesale@softtissue.com"),
+        ("Sparkle Dish Soap 500ml",     "Household",               55,   95,  30, 10, "EcoClean Inc.",           "contact@ecoclean.com"),
+        ("Artisan Dark Roast Coffee 250g","Beverages",            240,  350,  20, 12, "Roasters Reserve Coffee", "roasters@reserve.com"),
+        ("Frozen Cheese Pizza 400g",    "Frozen Foods",           120,  199,  25, 15, "FrostFoods Co.",          "sales@frostfoods.com"),
     ]
     
     db_products = []
@@ -141,21 +141,21 @@ def seed_db(db: Session):
     # trend_type: 'up' (growing), 'down' (declining), 'stable'
     # weekday_seasonality: multiplier for days [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
     p_params = {
-        "Fresh Milk 1L": (12, 'stable', 0.0, [0.8, 0.8, 0.9, 1.0, 1.2, 1.5, 1.3]),
-        "Whole Wheat Bread 500g": (7, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.4, 1.1]),
-        "Organic Eggs (Dozen)": (8, 'up', 0.04, [0.8, 0.9, 0.9, 1.0, 1.3, 1.6, 1.4]), # Growing demand
-        "Greek Yogurt 500g": (6, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.3, 1.1]),
-        "Fresh Gala Apples (1kg Bag)": (5, 'stable', 0.0, [0.8, 0.9, 0.9, 1.0, 1.2, 1.5, 1.2]),
-        "Bananas (1kg Bundle)": (8, 'stable', 0.0, [0.8, 0.8, 0.9, 1.0, 1.3, 1.5, 1.4]),
-        "Jasmine Rice 5kg": (2, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1]),
-        "Olive Oil Extra Virgin 1L": (3, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1]),
-        "Spaghetti Pasta 500g": (10, 'stable', 0.0, [0.8, 0.9, 0.9, 1.0, 1.3, 1.5, 1.3]),
-        "Canned Chunk Tuna 150g": (12, 'stable', 0.0, [0.9, 0.9, 1.0, 1.0, 1.1, 1.2, 1.0]),
-        "Tomato Ketchup 500ml": (4, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.3, 1.1]),
-        "Toilet Paper 9-Roll Pack": (3, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.3, 1.1]),
-        "Sparkle Dish Soap 500ml": (3, 'stable', 0.0, [0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.0]),
-        "Ground Coffee Blend 250g": (4, 'down', -0.02, [0.9, 0.9, 0.9, 1.0, 1.2, 1.4, 1.1]), # Declining demand
-        "Frozen Pepperoni Pizza 400g": (6, 'stable', 0.0, [0.7, 0.8, 0.8, 1.0, 1.4, 1.7, 1.5])
+        "Premium Basmati Rice 5kg":       (10, 'stable', 0.0,   [0.8, 0.8, 0.9, 1.0, 1.2, 1.5, 1.3]),
+        "Whole Wheat Bread 400g":         ( 8, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.4, 1.1]),
+        "Organic Eggs (Dozen)":           ( 9, 'up',     0.04,  [0.8, 0.9, 0.9, 1.0, 1.3, 1.6, 1.4]),
+        "Greek Yogurt 400g":              ( 6, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.3, 1.1]),
+        "Fresh Gala Apples 1kg":          ( 7, 'stable', 0.0,   [0.8, 0.9, 0.9, 1.0, 1.2, 1.5, 1.2]),
+        "Bananas 1kg Bundle":             ( 9, 'stable', 0.0,   [0.8, 0.8, 0.9, 1.0, 1.3, 1.5, 1.4]),
+        "Cold-Pressed Sunflower Oil 1L":  ( 5, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1]),
+        "Olive Oil Extra Virgin 500ml":   ( 3, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.1]),
+        "Spaghetti Pasta 500g":           (11, 'stable', 0.0,   [0.8, 0.9, 0.9, 1.0, 1.3, 1.5, 1.3]),
+        "Canned Tomatoes 400g":           (12, 'stable', 0.0,   [0.9, 0.9, 1.0, 1.0, 1.1, 1.2, 1.0]),
+        "Tomato Ketchup 500ml":           ( 4, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.3, 1.1]),
+        "Toilet Paper 6-Roll Pack":       ( 4, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.3, 1.1]),
+        "Sparkle Dish Soap 500ml":        ( 3, 'stable', 0.0,   [0.9, 0.9, 0.9, 1.0, 1.1, 1.2, 1.0]),
+        "Artisan Dark Roast Coffee 250g": ( 5, 'down',  -0.02,  [0.9, 0.9, 0.9, 1.0, 1.2, 1.4, 1.1]),
+        "Frozen Cheese Pizza 400g":       ( 6, 'up',    0.03,   [0.7, 0.8, 0.8, 1.0, 1.4, 1.7, 1.5]),
     }
     
     current_date = start_date

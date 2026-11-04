@@ -1,22 +1,38 @@
-# DemandSense - AI Business Intelligence Dashboard
+# DemandSense - AI Business Intelligence Dashboard & MERN Stack Web App
 
-A full-stack **AI-Powered Sales & Inventory Management** web application built with **FastAPI** (Python backend) and a responsive **desktop web dashboard** frontend.
-
----
-
-## 🚀 Features
-- 📊 **Executive BI Dashboard** — Revenue, Profit, Health Score, Margin analytics
-- 📦 **Inventory CRUD** — Add, edit, delete products with real-time stock tracking
-- 🛒 **Sales Transactions** — Record sales with customer profiles and UPI/Card/Cash payments
-- 🤖 **AI Demand Forecasting** — Linear regression ML model predicting next 30 days
-- 📈 **Analytics Reports** — Sales trends (daily/weekly/monthly), product velocity classification
-- 🔔 **Smart Alerts** — Auto-generated low-stock and demand-increase notifications
-- 📄 **Export Reports** — PDF summaries and Excel ledgers via ReportLab & openpyxl
-- 🔐 **JWT Authentication** — Secure user registration and login system
+A comprehensive **AI-Powered Sales & Inventory Management** web application featuring both a modern **MERN Stack (MongoDB, Express, React, Node.js)** website and a **FastAPI + Python** BI system.
 
 ---
 
-## 🛠️ Tech Stack
+## 🌟 MERN Stack Web App (`/mern`)
+Built with modern full-stack JavaScript:
+- **M**ongoDB & Mongoose (Schema design, collections, queries)
+- **E**xpress.js (REST API, JWT security, custom middleware)
+- **R**eact 18 & Vite (Desktop-first UI, Lucide Icons, interactive widgets)
+- **N**ode.js (Linear Regression ML Demand Forecasting engine)
+- 📊 **Chart.js** — Smooth gradient area charts, dual-axis trends, category doughnuts, animated bars
+- 🛒 **Real-Time Inventory & POS** — Instant stock deduction, low-stock notifications
+
+### 🚀 Running the MERN Website Locally
+```bash
+# 1. Start MongoDB (default port 27017)
+
+# 2. Run the MERN Server
+cd mern/server
+npm install
+node seedDemoUser.js   # Seeds demo store, products, and 60 days of sales
+node index.js          # Runs on http://localhost:5000
+
+# 3. Open in Browser
+http://localhost:5000
+```
+**Demo Login:** `demo@demandsense.ai` / `password123`
+
+---
+
+## 🚀 FastAPI + Python System
+
+### 🛠️ Tech Stack
 | Layer | Technology |
 |-------|-----------|
 | Backend | FastAPI, Python, SQLAlchemy |
@@ -26,97 +42,28 @@ A full-stack **AI-Powered Sales & Inventory Management** web application built w
 | Reports | ReportLab (PDF), openpyxl (Excel) |
 | Auth | JWT (python-jose) |
 
----
-
-## ⚡ Running Locally
-
-### 1. Install Dependencies
+### ⚡ Running FastAPI Locally
 ```bash
 pip install -r requirements.txt
-```
-
-### 2. Start the Server
-```bash
 python -m backend.main
 ```
-
-### 3. Open in Browser
-```
-http://127.0.0.1:8000
-```
-
-**Demo Credentials:**
-- Email: `owner@demandsense.com`
-- Password: `password123`
+Open `http://127.0.0.1:8000`
 
 ---
 
 ## 📁 Project Structure
 ```
 Sales-Data-Dashboard/
-├── backend/
-│   ├── main.py          # FastAPI app entry point
-│   ├── routers/         # API route handlers
-│   ├── models.py        # SQLAlchemy DB models
-│   ├── schemas.py       # Pydantic request/response schemas
-│   ├── ml_engine.py     # Demand forecasting ML model
-│   ├── reporting.py     # PDF & Excel report generators
-│   ├── db_seeder.py     # Sample data seeder
-│   └── security.py      # JWT authentication
-├── static/
-│   ├── index.html       # Desktop BI dashboard UI
-│   ├── style.css        # Dashboard styles
-│   └── app.js           # Frontend logic & API calls
+├── mern/
+│   ├── client/          # React 18 + Vite frontend
+│   │   ├── src/         # App.jsx, charts, components, styling
+│   │   └── package.json
+│   ├── server/          # Node.js + Express + MongoDB backend
+│   │   ├── models/      # Mongoose schemas (User, Product, Sale, Customer, Notification)
+│   │   ├── routes/      # Auth, Products, Sales, Customers, Analytics
+│   │   ├── utils/       # Demo seeder
+│   │   └── index.js     # API entry point & React SPA server
+├── backend/             # FastAPI backend
+├── static/              # Desktop BI dashboard UI
 └── requirements.txt
 ```
-
----
-
-## 🌐 Deployment Guide
-
-### Option 1: GitHub Pages (Instant Free Web Hosting)
-The dashboard is fully equipped to deploy directly on **GitHub Pages**:
-1. On GitHub, navigate to your repository: [Sudharsana03/Sales-Data-Dashboard](https://github.com/SUDHARSANA03/Sales-Data-Dashboard).
-2. Go to **Settings** > **Pages** (in the left sidebar).
-3. Under **Build and deployment** > **Branch**:
-   - Select branch: `main`
-   - Select folder: `/ (root)`
-   - Click **Save**.
-4. In ~1-2 minutes, GitHub will publish your live dashboard at:
-   `https://sudharsana03.github.io/Sales-Data-Dashboard/`
-5. **Features on GitHub Pages:**
-   - Works immediately in interactive **Instant Demo Mode** with live charts, sales records, customer directories, and BI analytics.
-   - Use the **Set API** button anytime to connect your live backend on Render/Railway!
-
----
-
-### Option 2: Render / Railway (Full-Stack Backend + Database)
-1. Sign in to [Render](https://render.com) or [Railway](https://railway.app).
-2. Click **New Web Service** and link `Sudharsana03/Sales-Data-Dashboard`.
-3. Set **Build Command**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Set **Start Command**:
-   ```bash
-   uvicorn backend.main:app --host 0.0.0.0 --port $PORT
-   ```
-   *(Or let the platform auto-detect the included `Procfile`)*
-5. Optional Environment Variables:
-   - `SMTP_HOST`: `smtp.gmail.com` (for real automated email invoices)
-   - `SMTP_PORT`: `587`
-   - `SMTP_USER`: `your-email@gmail.com`
-   - `SMTP_PASSWORD`: `your-app-password`
-   - `DATABASE_URL`: (Optional PostgreSQL URL; defaults to SQLite if omitted)
-
----
-
-### Option 3: Docker Container
-```bash
-# Build the Docker image
-docker build -t sales-data-dashboard .
-
-# Run the container
-docker run -p 8000:8000 sales-data-dashboard
-```
-Open `http://localhost:8000` in your web browser.
