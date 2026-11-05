@@ -1,0 +1,25 @@
+{
+  "name": "demandsense-sales-dashboard",
+  "version": "1.0.0",
+  "description": "DemandSense AI - Sales & Inventory Management MERN Stack Application",
+  "private": true,
+  "scripts": {
+    "install:client": "npm --prefix mern/client install",
+    "install:server": "npm --prefix mern/server install",
+    "build:client": "npm --prefix mern/client run build",
+    "build": "npm --prefix mern/client install && npm --prefix mern/client run build && npm --prefix mern/server install",
+    "start": "node mern/server/index.js",
+    "seed": "node mern/server/seedDemoUser.js"
+  },
+  "keywords": [
+    "mern",
+    "react",
+    "express",
+    "mongodb",
+    "ai",
+    "inventory",
+    "analytics"
+  ],
+  "author": "Sudharsan",
+  "license": "ISC"
+}

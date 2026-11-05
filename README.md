@@ -51,6 +51,36 @@ Open `http://127.0.0.1:8000`
 
 ---
 
+## 🌐 Render Deployment Guide (MERN Stack)
+
+You can deploy the MERN stack web app directly to **Render** using MongoDB Atlas:
+
+### Step 1: Set Up Free MongoDB Atlas Database
+1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) and sign in.
+2. Create a free **M0 Cluster**.
+3. Under **Database Access**, create a user (e.g. `admin`) and set a password.
+4. Under **Network Access**, click **Add IP Address** -> choose **Allow Access from Anywhere** (`0.0.0.0/0`).
+5. Click **Connect** -> **Drivers** (Node.js) -> copy your connection URI string:
+   `mongodb+srv://<username>:<password>@cluster0.mongodb.net/demandsense?retryWrites=true&w=majority`
+
+### Step 2: Deploy on Render
+1. Go to [Render Dashboard](https://dashboard.render.com/) and click **New +** -> **Web Service**.
+2. Connect your GitHub repository `Sales-Data-Dashboard`.
+3. Configure the following settings:
+   - **Name**: `demandsense-app`
+   - **Environment / Runtime**: `Node`
+   - **Build Command**: `npm run build`
+   - **Start Command**: `npm start`
+4. Add **Environment Variables**:
+   - `MONGO_URI`: `mongodb+srv://<username>:<password>@cluster0.mongodb.net/demandsense?retryWrites=true&w=majority`
+   - `JWT_SECRET`: Any long random secret key (e.g. `demandsense_secret_key_prod_2025`)
+   - `NODE_ENV`: `production`
+5. Click **Deploy Web Service**!
+
+*Note: On first startup, DemandSense automatically initializes the database and creates the demo user (`demo@demandsense.ai` / `password123`) with 60 days of sample data.*
+
+---
+
 ## 📁 Project Structure
 ```
 Sales-Data-Dashboard/

@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
+const User = require('./models/User');
+const { seedDemoData } = require('./utils/seeder');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'demandsense_secret_key_2024';
 process.env.JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
@@ -37,8 +39,32 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/demandsense';
 
 mongoose.connect(MONGO_URI)
-  .then(() => {
+  .then(async () => {
     console.log('✅ MongoDB connected');
+
+    // Auto-seed demo account & initial dataset if database is empty
+    try {
+      const demoUser = await User.findOne({ email: 'demo@demandsense.ai' });
+      if (!demoUser) {
+        console.log('🌱 First startup: Creating demo account and seeding data...');
+        const user = await User.create({
+          fullName: 'Demo Executive',
+          email: 'demo@demandsense.ai',
+          password: 'password123',
+          business: {
+            name: 'Apex Supermart & Organics',
+            category: 'Supermarket / Retail',
+            address: '42 MG Road, Sector 4',
+            phone: '+91 98765 43210'
+          }
+        });
+        await seedDemoData(user._id);
+        console.log('✅ Demo account seeded successfully (demo@demandsense.ai / password123)');
+      }
+    } catch (seedErr) {
+      console.warn('Auto-seed check notice:', seedErr.message);
+    }
+
     app.listen(PORT, () => console.log(`🚀 DemandSense MERN running on http://localhost:${PORT}`));
   })
   .catch(err => {
