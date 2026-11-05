@@ -11,7 +11,7 @@ let API_BASE = savedApiBase || (
 );
 
 let isDemoMode = localStorage.getItem("demandsense_demo_mode") === "true";
-if (window.location.hostname.includes("github.io") && !savedApiBase) {
+if ((window.location.hostname.includes("github.io") || window.location.protocol === "file:") && !savedApiBase) {
     isDemoMode = true;
 }
 
@@ -62,15 +62,17 @@ const demoStore = {
 const _originalFetch = window.fetch;
 window.fetch = async function(resource, init) {
     const urlStr = typeof resource === 'string' ? resource : (resource && resource.url ? resource.url : '');
-    if (isDemoMode && urlStr.startsWith(API_BASE)) {
+    const isApiCall = urlStr.startsWith(API_BASE) || urlStr.includes("/api/") || urlStr.startsWith("/api");
+
+    if (isDemoMode && isApiCall) {
         return mockApiResponse(urlStr, init);
     }
     try {
         const resp = await _originalFetch(resource, init);
         return resp;
     } catch (netErr) {
-        if (urlStr.startsWith(API_BASE)) {
-            console.warn("[DEMO FALLBACK] Live backend unreachable at " + API_BASE + ". Activating Demo Mode.", netErr);
+        if (isApiCall) {
+            console.warn("[DEMO FALLBACK] Live backend unreachable at " + urlStr + ". Activating Demo Mode.", netErr);
             isDemoMode = true;
             localStorage.setItem("demandsense_demo_mode", "true");
             return mockApiResponse(urlStr, init);
@@ -88,7 +90,14 @@ function createJsonResponse(data, status = 200) {
 
 function mockApiResponse(urlStr, init = {}) {
     const method = (init.method || "GET").toUpperCase();
-    const path = urlStr.replace(API_BASE, "").split("?")[0];
+    let path = urlStr;
+    if (path.includes(API_BASE)) {
+        path = path.replace(API_BASE, "");
+    } else if (path.includes("/api")) {
+        path = path.substring(path.indexOf("/api") + 4);
+    }
+    path = path.split("?")[0];
+    if (!path.startsWith("/")) path = "/" + path;
     
     // Auth routes
     if (path === "/auth/login") {
@@ -158,16 +167,19 @@ function mockApiResponse(urlStr, init = {}) {
         });
     }
     if (path === "/analytics/products") {
-        return createJsonResponse(demoStore.products.map(p => ({
-            product_id: p.id,
-            product_name: p.name,
-            category: p.category,
-            total_sales: (p.selling_price * (p.id * 12 + 10)),
-            units_sold: (p.id * 12 + 10),
-            profit: ((p.selling_price - p.cost_price) * (p.id * 12 + 10)),
-            velocity: p.id % 2 === 0 ? "Fast" : "Moderate",
-            margin_pct: Math.round(((p.selling_price - p.cost_price) / p.selling_price) * 100)
-        })));
+        return createJsonResponse(demoStore.products.map(p => {
+            const cost = p.purchase_price || p.cost_price || 0;
+            return {
+                product_id: p.id,
+                product_name: p.name,
+                category: p.category,
+                total_sales: (p.selling_price * (p.id * 12 + 10)),
+                units_sold: (p.id * 12 + 10),
+                profit: ((p.selling_price - cost) * (p.id * 12 + 10)),
+                velocity: p.id % 2 === 0 ? "Fast" : "Moderate",
+                margin_pct: Math.round(((p.selling_price - cost) / (p.selling_price || 1)) * 100)
+            };
+        }));
     }
     if (path === "/analytics/forecast") {
         const points = [];
@@ -283,6 +295,9 @@ function mockApiResponse(urlStr, init = {}) {
 
     // Notifications
     if (path === "/notifications") {
+        if (urlStr.includes("unread_only=true")) {
+            return createJsonResponse(demoStore.notifications.filter(n => !n.is_read));
+        }
         return createJsonResponse(demoStore.notifications);
     }
     if (path.match(/\/notifications\/\d+\/read/)) {
@@ -678,6 +693,30 @@ async function triggerReseed() {
 function downloadReport(format) {
     if (!currentToken) {
         alert("Please register or log in to download records.");
+        return;
+    }
+    if (isDemoMode) {
+        // Export CSV directly in browser for standalone demo mode
+        const headers = ["ID", "Date", "Invoice No", "Product", "Customer", "Quantity", "Unit Price", "Total Sales", "Payment Method"];
+        const rows = demoStore.sales.map(s => [
+            s.id,
+            s.date,
+            s.invoice_number,
+            `"${s.product_name}"`,
+            `"${s.customer_name}"`,
+            s.quantity,
+            s.unit_price,
+            s.total_sales,
+            s.payment_method
+        ]);
+        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `demandsense_sales_report_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
         return;
     }
     const endpoint = format === "excel" ? "excel" : "pdf";
@@ -1182,6 +1221,10 @@ async function handleResendInvoiceEmail() {
 }
 
 function downloadSaleInvoicePdf(saleId, invoiceNum) {
+    if (isDemoMode) {
+        openSaleInvoiceHtml(saleId);
+        return;
+    }
     const token = currentToken;
     const url = `${API_BASE}/sales/${saleId}/invoice-pdf`;
     fetch(url, { headers: { "Authorization": `Bearer ${token}` } })
@@ -1220,6 +1263,112 @@ function openSaleInvoiceWhatsApp(saleData) {
 }
 
 function openSaleInvoiceHtml(saleId) {
+    if (isDemoMode) {
+        const sale = demoStore.sales.find(s => s.id === saleId) || demoStore.sales[0] || {
+            invoice_number: "INV-" + saleId,
+            date: new Date().toISOString().split("T")[0],
+            customer_name: "Valued Customer",
+            customer_email: "guest@store.com",
+            product_name: "Inventory Item",
+            quantity: 1,
+            unit_price: 150,
+            total_sales: 150,
+            payment_method: "Cash"
+        };
+        const biz = (demoStore.user && demoStore.user.business) ? demoStore.user.business : {
+            name: "DemandSense Supermarket",
+            category: "Supermarket & Groceries",
+            address: "100 Retail Boulevard, City Center",
+            phone: "+1 (555) 019-2834"
+        };
+        const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Invoice #${sale.invoice_number || saleId}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #1e293b; background: #f8fafc; }
+            .invoice-card { max-width: 620px; margin: 0 auto; background: #ffffff; padding: 36px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+            .top-bar { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #f1f5f9; padding-bottom: 20px; }
+            .biz-name { font-size: 22px; font-weight: 800; color: #0284c7; }
+            .biz-sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+            .badge-paid { display: inline-block; background: #dcfce7; color: #15803d; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; margin-top: 6px; }
+            .invoice-title { text-align: right; }
+            .invoice-title h2 { margin: 0; font-size: 20px; color: #0f172a; }
+            .invoice-title p { margin: 4px 0 0; font-size: 13px; color: #64748b; }
+            .client-section { margin-top: 24px; font-size: 14px; line-height: 1.6; }
+            .client-section strong { color: #0f172a; }
+            table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 14px; }
+            th { background: #f8fafc; text-align: left; padding: 12px 14px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; border-bottom: 1px solid #e2e8f0; }
+            td { padding: 14px; border-bottom: 1px solid #f1f5f9; }
+            .total-row { font-size: 16px; font-weight: 800; }
+            .actions-bar { margin-top: 30px; display: flex; gap: 12px; justify-content: flex-end; }
+            .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+            .btn-print { background: #0284c7; color: #ffffff; }
+            .btn-close { background: #e2e8f0; color: #334155; }
+            @media print { .actions-bar { display: none; } body { padding: 0; background: #fff; } .invoice-card { box-shadow: none; border: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-card">
+            <div class="top-bar">
+              <div>
+                <div class="biz-name">${biz.name}</div>
+                <div class="biz-sub">${biz.category}</div>
+                <div class="biz-sub">${biz.address} | ${biz.phone}</div>
+                <span class="badge-paid">✓ PAID IN FULL</span>
+              </div>
+              <div class="invoice-title">
+                <h2>INVOICE</h2>
+                <p>#${sale.invoice_number || 'INV-' + saleId}</p>
+                <p>Date: ${sale.date}</p>
+              </div>
+            </div>
+            <div class="client-section">
+              <strong>Billed To:</strong><br>
+              ${sale.customer_name}<br>
+              <span style="color:#64748b;">${sale.customer_email || 'Walk-in Customer'}</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th style="text-align:right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>${sale.product_name}</strong></td>
+                  <td>${sale.quantity}</td>
+                  <td>₹${Number(sale.unit_price).toFixed(2)}</td>
+                  <td style="text-align:right;">₹${Number(sale.total_sales).toFixed(2)}</td>
+                </tr>
+                <tr class="total-row">
+                  <td colspan="3" style="text-align:right; border-top: 2px solid #cbd5e1;">Grand Total:</td>
+                  <td style="text-align:right; color:#0284c7; border-top: 2px solid #cbd5e1;">₹${Number(sale.total_sales).toFixed(2)}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="margin-top:20px; font-size:13px; color:#64748b;">
+              Payment Method: <strong>${sale.payment_method}</strong>
+            </div>
+            <div class="actions-bar">
+              <button class="btn btn-close" onclick="window.close()">Close</button>
+              <button class="btn btn-print" onclick="window.print()">🖨️ Print / Save PDF</button>
+            </div>
+          </div>
+        </body>
+        </html>`;
+        const invoiceWin = window.open("", "_blank");
+        if (invoiceWin) {
+            invoiceWin.document.write(html);
+            invoiceWin.document.close();
+            return;
+        }
+    }
     window.open(`${API_BASE}/sales/${saleId}/invoice-html`, '_blank');
 }
 
@@ -1463,8 +1612,8 @@ async function markAlertAsRead(id) {
         if (res.ok) {
             loadMobileAlerts();
             // Reload BI dashboard metrics if executive summary is open
-            const activeTab = document.querySelector(".bi-tab-btn.active").getAttribute("data-tab");
-            if (activeTab === "executive") fetchSummaryMetrics();
+            const activeTab = document.querySelector(".bi-tab-btn.active");
+            if (activeTab && activeTab.getAttribute("data-tab") === "executive") fetchSummaryMetrics();
         }
     } catch (err) {
         console.error(err);
